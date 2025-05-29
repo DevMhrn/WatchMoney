@@ -12,6 +12,22 @@ export default {
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
+		perspective: {
+			'1000': '1000px',
+			'2000': '2000px',
+		},
+		animation: {
+			'float': 'float 6s ease-in-out infinite',
+			'pulse-slow': 'pulse 4s ease-in-out infinite',
+			'spin-slow': 'spin 8s linear infinite',
+			'bounce-slow': 'bounce 3s ease-in-out infinite',
+		},
+		keyframes: {
+			float: {
+				'0%, 100%': { transform: 'translateY(0px)' },
+				'50%': { transform: 'translateY(-10px)' },
+			}
+		},
   		colors: {
 			border: "hsl(var(--border))",
         	input: "hsl(var(--input))",

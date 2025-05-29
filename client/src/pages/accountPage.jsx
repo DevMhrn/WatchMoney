@@ -6,7 +6,7 @@ import { MdAdd, MdVerifiedUser } from 'react-icons/md';
 import { toast } from 'sonner';
 import { useStore } from '../store';
 import  api  from '../libs/apiCalls';
-import Loading from '../components/loading';
+import { AccountCardShimmer } from '../components/ui/shimmer';
 import Title from '../components/Title';
 import AccountMenu from '../components/AccountMenu';
 import { formatCurrency, maskAccountNumber } from '../libs/index';
@@ -85,7 +85,23 @@ const AccountPage = () => {
   }, []);
 
   if (isLoading) {
-    return <Loading />;
+    return (
+      <div className="w-full py-10">
+        {/* Header shimmer */}
+        <div className="flex items-center justify-between mb-10">
+          <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-56 rounded"></div>
+          <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-20 rounded"></div>
+        </div>
+
+        {/* Account cards shimmer */}
+        <div className="w-full grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 py-10 gap-6">
+          <AccountCardShimmer />
+          <AccountCardShimmer />
+          <AccountCardShimmer />
+          <AccountCardShimmer />
+        </div>
+      </div>
+    );
   }
   console.log("User accounts wefwe:", selectedAccount);
 

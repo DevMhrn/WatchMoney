@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import api from '../libs/apiCalls';
-import Loading from '../components/loading';
+import { StatsCardShimmer, ChartShimmer, PieChartShimmer, TableShimmer, CardShimmer } from '../components/ui/shimmer';
 import Info from '../components/info';
 import Stats from '../components/stats';
 import { Chart } from '../components/chart';
@@ -61,14 +61,51 @@ const Dashboard = () => {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center w-full h-[80vh]">
-                <Loading />
+            <div>
+                {/* Info shimmer */}
+                <div className="mb-8">
+                    <div className="space-y-2">
+                        <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-48 rounded"></div>
+                        <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-4 w-64 rounded"></div>
+                    </div>
+                </div>
+
+                {/* Stats shimmer */}
+                <div className="flex flex-col items-center justify-between gap-8 mb-20 md:flex-row 2xl:gap-x-40">
+                    <div className="flex flex-col items-center justify-between w-full gap-10 md:flex-row 2xl:gap-20">
+                        <StatsCardShimmer />
+                        <StatsCardShimmer />
+                        <StatsCardShimmer />
+                    </div>
+                </div>
+
+                {/* Charts shimmer */}
+                <div className="flex flex-col-reverse items-center gap-10 w-full md:flex-row mb-20">
+                    <ChartShimmer />
+                    <PieChartShimmer />
+                </div>
+
+                {/* Tables shimmer */}
+                <div className="flex flex-col-reverse gap-0 md:flex-row md:gap-10 2xl:gap-20">
+                    <div className="flex-1 w-full py-20">
+                        <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-6 w-48 rounded mb-5"></div>
+                        <TableShimmer rows={5} columns={5} />
+                    </div>
+                    <div className="mt-20 md:mt-0 py-5 md:py-20 w-full md:w-1/3">
+                        <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-6 w-32 rounded mb-6"></div>
+                        <div className="w-full space-y-4">
+                            <CardShimmer />
+                            <CardShimmer />
+                            <CardShimmer />
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="px-0 md:px-5 2xl:px-20">
+        <div>
             <Info 
                 title="Dashboard" 
                 subTitle="Monitor your financial activities" 

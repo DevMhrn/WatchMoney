@@ -23,7 +23,7 @@ const RootLayout = () => {
     ):(
       <>
         <Navbar />
-        <div className='min-h-[calc(h-screen-100px)]'>
+        <div className="min-h-[calc(100vh-64px)] px-4 md:px-8 xl:px-16 2xl:px-32">
           <Outlet />
         </div>
       </>
@@ -47,23 +47,20 @@ function App() {
   return (
     <>
       <Toaster position="top-center" richColors />
-      <main>
-        <div className='w-full min-h-screen px-6 bg-gray-100 md:px-20 dark:bg-gray-800'>
-          <Routes>
-              <Route element={<RootLayout/>}>
-                <Route path="/" element={<Navigate to="/dashboard" />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="/transactions" element={<Transactions />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/accounts" element={<AccountPage />} />
+      <main className="w-full min-h-screen bg-gray-100 dark:bg-gray-800">
+        <Routes>
+            <Route element={<RootLayout/>}>
+              <Route path="/" element={<Navigate to="/dashboard" />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="/transactions" element={<Transactions />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/accounts" element={<AccountPage />} />
 
 
-              </Route>
-              <Route path="login" element={<Login />} />
-              <Route path="register" element={<Register />} />
-          </Routes>
-          
-        </div>
+            </Route>
+            <Route path="login" element={<Login />} />
+            <Route path="register" element={<Register />} />
+        </Routes>
       </main>
     </>
   )

@@ -1,6 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -56,6 +57,7 @@
     --chart-5: 340 75% 55%
   }
 }
+
 @layer base {
   * {
     @apply border-border;
@@ -64,6 +66,7 @@
     @apply bg-background text-foreground;
   }
 }
+
 @layer components {
   .inputStyles {
     @apply bg-transparent 
@@ -90,5 +93,143 @@
            text-sm 
            md:text-base 
            mb-2;
+  }
+
+  /* Enhanced animation utilities for seamless loops */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .perspective-2000 {
+    perspective: 2000px;
+  }
+
+  .transform-style-preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .transform-gpu {
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+
+  .animate-in {
+    animation-fill-mode: both;
+  }
+
+  .slide-in-from-top-1 {
+    animation: slide-in-from-top-1 0.3s ease-out;
+  }
+
+  /* Smooth, seamless particle animations */
+  @keyframes float-seamless {
+    0% { 
+      transform: translateY(0px) translateX(0px) rotate(0deg);
+    }
+    25% { 
+      transform: translateY(-15px) translateX(8px) rotate(90deg);
+    }
+    50% { 
+      transform: translateY(0px) translateX(15px) rotate(180deg);
+    }
+    75% { 
+      transform: translateY(15px) translateX(8px) rotate(270deg);
+    }
+    100% { 
+      transform: translateY(0px) translateX(0px) rotate(360deg);
+    }
+  }
+
+  @keyframes pulse-smooth {
+    0% { 
+      opacity: 0.6;
+      transform: scale(1);
+      filter: blur(0.3px) brightness(1.1) saturate(1.2);
+    }
+    50% { 
+      opacity: 1;
+      transform: scale(1.1);
+      filter: blur(0.2px) brightness(1.3) saturate(1.4);
+    }
+    100% { 
+      opacity: 0.6;
+      transform: scale(1);
+      filter: blur(0.3px) brightness(1.1) saturate(1.2);
+    }
+  }
+
+  @keyframes drift-endless {
+    0% { 
+      transform: translateX(0px) translateY(0px) rotate(0deg);
+      filter: brightness(1.1) saturate(1.3);
+    }
+    25% { 
+      transform: translateX(25px) translateY(-25px) rotate(90deg);
+      filter: brightness(1.2) saturate(1.4);
+    }
+    50% { 
+      transform: translateX(0px) translateY(-50px) rotate(180deg);
+      filter: brightness(1.3) saturate(1.5);
+    }
+    75% { 
+      transform: translateX(-25px) translateY(-25px) rotate(270deg);
+      filter: brightness(1.2) saturate(1.4);
+    }
+    100% { 
+      transform: translateX(0px) translateY(0px) rotate(360deg);
+      filter: brightness(1.1) saturate(1.3);
+    }
+  }
+
+  @keyframes slide-in-from-top-1 {
+    from {
+      transform: translateY(-0.25rem);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Seamless floating card animation */
+  .floating-smooth {
+    animation: float-seamless 16s ease-in-out infinite;
+  }
+
+  /* Enhanced particle system with better visibility */
+  .particle {
+    animation: pulse-smooth 6s ease-in-out infinite;
+    /* Ensure particles are above background but below content */
+    z-index: 1 !important;
+    /* Enhanced glow effect */
+    filter: blur(0.3px) brightness(1.1) saturate(1.2);
+  }
+
+  .geometric-shape {
+    backdrop-filter: blur(1px);
+    border-color: hsl(var(--border));
+    animation: drift-endless 20s linear infinite;
+    /* Ensure shapes are visible */
+    z-index: 2 !important;
+    /* Enhanced visibility */
+    filter: brightness(1.1) saturate(1.3);
+  }
+
+  /* Performance optimizations with proper layering */
+  .particle,
+  .geometric-shape,
+  .floating-card {
+    will-change: transform, opacity;
+    transform-origin: center center;
+    backface-visibility: hidden;
+    /* Ensure proper GPU acceleration */
+    transform: translateZ(0);
+  }
+
+  /* Ensure content is above background elements */
+  .relative {
+    z-index: 10;
   }
 }

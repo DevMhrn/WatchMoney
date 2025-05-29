@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import * as z from 'zod';
+import { animate } from 'animejs';
 import { useStore } from '../../store';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,9 +10,12 @@ import SocialAuth from '../../components/socialAuth';
 import api from '../../libs/apiCalls';
 import { toast } from 'sonner'; 
 import Separator from '../../components/separator';
-import Input from '../../components/ui/input';
-import { BiLoader } from 'react-icons/bi';
+import { BiLoader, BiUser, BiLock } from 'react-icons/bi';
 import { Button } from '../../components/ui/button';
+import AnimatedBackground from '../../components/ui/animated-background';
+import FloatingCard from '../../components/ui/floating-card';
+import AnimatedInput from '../../components/ui/animated-input';
+import AnimatedButton from '../../components/ui/animated-button';
 
 const LoginSchema = z.object({
     email: z
@@ -25,14 +29,54 @@ function Login() {
     const { user, setCredentials } = useStore((state) => state);
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const titleRef = useRef(null);
+    const formRef = useRef(null);
     
     const { register, handleSubmit, formState: { errors } } = useForm({
         resolver: zodResolver(LoginSchema)
     });
 
+    useEffect(() => {
+        // Animate title
+        if (titleRef.current) {
+            animate(titleRef.current, {
+                opacity: [0, 1],
+                y: [-30, 0],
+                duration: 800,
+                delay: 300,
+                ease: 'outExpo'
+            });
+        }
+
+        // Animate form elements
+        if (formRef.current) {
+            const elements = formRef.current.querySelectorAll('.animate-element');
+            elements.forEach((element, index) => {
+                animate(element, {
+                    opacity: [0, 1],
+                    y: [20, 0],
+                    duration: 600,
+                    delay: 500 + (index * 100),
+                    ease: 'outExpo'
+                });
+            });
+        }
+    }, []);
+
     const onSubmit = async (data) => {
         try {
             setLoading(true);
+            
+            // Add loading animation
+            const submitButton = document.querySelector('.submit-button');
+            if (submitButton) {
+                animate(submitButton, {
+                    scale: [1, 0.95, 1],
+                    duration: 300,
+                    ease: 'outQuad'
+                });
+            }
+            
             const response = await api.post('/auth/signin', data);
             
             if (response.data.status) {
@@ -45,11 +89,25 @@ function Login() {
                     token: response.data.token
                 });
 
-                navigate('/dashboard');
+                // Success animation before navigation
+                animate('.login-card', {
+                    scale: 1.1,
+                    opacity: 0,
+                    duration: 500,
+                    ease: 'outExpo',
+                    complete: () => navigate('/dashboard')
+                });
             }
         } catch (error) {
             console.error(error);
             toast.error(error.response?.data?.message || 'Login failed');
+            
+            // Error shake animation
+            animate('.login-card', {
+                x: [-10, 10, -10, 10, 0],
+                duration: 500,
+                ease: 'outQuad'
+            });
         } finally {
             setLoading(false);
         }
@@ -62,54 +120,113 @@ function Login() {
     }, [user, navigate]);
 
     return (
-        <div className="flex items-center justify-center w-full min-h-screen py-10">
-            <Card className="w-[400px] bg-white dark:bg-black/20 shadow-md overflow-hidden">
-                <div className="p-6 md:p-8">
-                    <CardHeader className="py-0">
-                        <CardTitle className="mb-8 text-center dark:text-white">
-                            Login
-                        </CardTitle>
-                    </CardHeader>
+        <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
+            <AnimatedBackground />
+            
+            {/* Theme-aware gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/60 to-muted/80" />
+            
+            <div className="relative z-10 w-full max-w-md px-6">
+                <FloatingCard className="group">
+                    <Card className="login-card w-full bg-card/90 backdrop-blur-xl border-0 shadow-2xl shadow-primary/20 overflow-hidden">
+                        {/* Animated border using theme colors */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-secondary opacity-20 animate-pulse" />
+                        <div className="absolute inset-[1px] bg-card rounded-lg" />
+                        
+                        <div className="relative p-8">
+                            <CardHeader className="py-0 text-center">
+                                <div className="flex justify-center mb-6">
+                                    <div className="w-16 h-16 bg-gradient-to-r from-primary to-accent rounded-2xl flex items-center justify-center shadow-lg">
+                                        <BiUser className="w-8 h-8 text-primary-foreground" />
+                                    </div>
+                                </div>
+                                <CardTitle 
+                                    ref={titleRef}
+                                    className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent opacity-0"
+                                >
+                                    Welcome Back
+                                </CardTitle>
+                                <p className="text-muted-foreground mt-2 opacity-0 animate-element">
+                                    Sign in to your account
+                                </p>
+                            </CardHeader>
 
-                    <CardContent className="p-0">
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                            <div className="mb-8 space-y-6">
-                                <Input
-                                    disabled={loading}
-                                    id="email"
-                                    label="Email"
-                                    name="email"
-                                    type="email"
-                                    placeholder="john@example.com"
-                                    error={errors?.email?.message}
-                                    {...register("email")}
-                                    className="text-sm border dark:border-gray-800 dark:bg-transparent dark:text-gray-400 dark:outline-none dark:placeholder:text-gray-700"
-                                />
-                                <Input
-                                    disabled={loading}
-                                    id="password"
-                                    label="Password"
-                                    name="password"
-                                    type="password"
-                                    placeholder="password"
-                                    error={errors?.password?.message}
-                                    {...register("password")}
-                                    className="text-sm border dark:border-gray-800 dark:bg-transparent dark:text-gray-400 dark:outline-none dark:placeholder:text-gray-700"
-                                />
-                                <Separator />
-                                <SocialAuth isLoading={loading} setLoading={setLoading} />
-                            </div>
-                            <Button type="submit" className="w-full bg-black dark:bg-white dark:text-black" disabled={loading}>
-                                {loading ? (<BiLoader className="w-4 h-4 animate-spin" />) : ("Login")}
-                            </Button>
-                        </form>
-                    </CardContent>
-                </div>
-                <CardFooter className="justify-center gap-2">
-                    <p>Don't have an account? </p>
-                    <Link to="/register" className="font-semibold text-black dark:text-white hover:underline">Register</Link>
-                </CardFooter>
-            </Card>
+                            <CardContent className="p-0 mt-8">
+                                <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                                    <div className="space-y-5">
+                                        <div className="opacity-0 animate-element">
+                                            <AnimatedInput
+                                                disabled={loading}
+                                                id="email"
+                                                label="Email Address"
+                                                name="email"
+                                                type="email"
+                                                placeholder="Enter your email"
+                                                error={errors?.email?.message}
+                                                {...register("email")}
+                                                className="text-gray-900 dark:text-gray-100"
+                                            />
+                                        </div>
+                                        
+                                        <div className="opacity-0 animate-element">
+                                            <AnimatedInput
+                                                disabled={loading}
+                                                id="password"
+                                                label="Password"
+                                                name="password"
+                                                type="password"
+                                                placeholder="Enter your password"
+                                                error={errors?.password?.message}
+                                                {...register("password")}
+                                                className="text-gray-900 dark:text-gray-100"
+                                            />
+                                        </div>
+                                        
+                                        <div className="opacity-0 animate-element">
+                                            <Separator />
+                                        </div>
+                                        
+                                        <div className="opacity-0 animate-element">
+                                            <SocialAuth isLoading={loading} setLoading={setLoading} />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="opacity-0 animate-element">
+                                        <AnimatedButton
+                                            type="submit"
+                                            className="submit-button w-full h-12 text-lg font-semibold"
+                                            disabled={loading}
+                                            variant="primary"
+                                        >
+                                            {loading ? (
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <BiLoader className="w-5 h-5 animate-spin" />
+                                                    <span>Signing In...</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <BiLock className="w-5 h-5" />
+                                                    <span>Sign In</span>
+                                                </div>
+                                            )}
+                                        </AnimatedButton>
+                                    </div>
+                                </form>
+                            </CardContent>
+                            
+                            <CardFooter className="justify-center gap-2 mt-8 opacity-0 animate-element">
+                                <p className="text-muted-foreground">Don't have an account?</p>
+                                <Link 
+                                    to="/register" 
+                                    className="font-semibold text-primary hover:text-accent transition-colors duration-200 hover:underline"
+                                >
+                                    Create Account
+                                </Link>
+                            </CardFooter>
+                        </div>
+                    </Card>
+                </FloatingCard>
+            </div>
         </div>
     );
 }

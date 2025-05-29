@@ -14,6 +14,7 @@ import AddTransaction from "../components/addTransaction";
 import { exportToExcel } from "react-json-to-excel";
 import DateRange from '../components/date-range';
 import { formatCurrency } from "../libs";
+import { TableShimmer } from "../components/ui/shimmer";
 
 const Transactions = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -125,8 +126,20 @@ const Transactions = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center w-full h-[80vh]">
-        <Loading />
+      <div className="w-full py-10">
+        {/* Header shimmer */}
+        <div className='flex flex-col md:flex-row md:items-center justify-between mb-10'>
+          <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-48 rounded"></div>
+          <div className='flex flex-col md:flex-row md:items-center gap-4'>
+            <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-48 rounded"></div>
+            <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-64 rounded"></div>
+            <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-20 rounded"></div>
+            <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-24 rounded"></div>
+          </div>
+        </div>
+        
+        {/* Table shimmer */}
+        <TableShimmer rows={8} columns={6} />
       </div>
     );
   }
