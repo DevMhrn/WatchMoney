@@ -26,33 +26,24 @@ export const getTransactions = async (req, res) => {
             text: `
                 SELECT 
                     t.*,
-                    to_char(t.createdat, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as createdat
+                    to_char(t.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as formatted_created_at
                 FROM 
                     tbltransaction t
                 WHERE 
                     t.user_id = $1 
-                    AND t.createdat BETWEEN $2 AND $3
+                    AND t.created_at BETWEEN $2 AND $3
                     ${s ? `AND (
                         LOWER(t.description) LIKE LOWER($4) 
                         OR LOWER(t.status) LIKE LOWER($4) 
                         OR LOWER(t.source) LIKE LOWER($4)
                     )` : ''}
                 ORDER BY 
-                    t.createdat DESC
+                    t.created_at DESC
             `,
             values: s 
                 ? [userId, startDate, endDate, `%${s}%`]
                 : [userId, startDate, endDate]
         };
-
-        // console.log('Query:', {
-        //     text: query.text,
-        //     values: query.values,
-        //     userId,
-        //     startDate,
-        //     endDate,
-        //     search: s
-        // });
 
         const transactions = await pool.query(query);
 
@@ -108,13 +99,13 @@ export const getDashboardInformation = async (req, res) => {
 
         const result = await pool.query({
             text: `SELECT 
-                    EXTRACT(MONTH FROM createdat) AS month,
+                    EXTRACT(MONTH FROM created_at) AS month,
                     type,
                     SUM(amount) AS totalamount 
                    FROM tbltransaction 
                    WHERE user_id = $1 
-                   AND createdat BETWEEN $2 AND $3 
-                   GROUP BY EXTRACT(MONTH FROM createdat), type`,
+                   AND created_at BETWEEN $2 AND $3 
+                   GROUP BY EXTRACT(MONTH FROM created_at), type`,
             values: [userId, startDate, endDate]
         });
 
@@ -138,13 +129,13 @@ export const getDashboardInformation = async (req, res) => {
             pool.query({
                 text: `SELECT * FROM tbltransaction 
                        WHERE user_id = $1 
-                       ORDER BY createdat DESC LIMIT 5`,
+                       ORDER BY created_at DESC LIMIT 5`,
                 values: [userId]
             }),
             pool.query({
                 text: `SELECT * FROM tblaccount 
                        WHERE user_id = $1 
-                       ORDER BY createdat DESC LIMIT 4`,
+                       ORDER BY created_at DESC LIMIT 4`,
                 values: [userId]
             })
         ]);
@@ -217,7 +208,7 @@ export const addTransaction = async (req, res) => {
             await pool.query({
                 text: `UPDATE tblaccount 
                        SET account_balance = account_balance - $1,
-                           updatedat = CURRENT_TIMESTAMP 
+                           updated_at = CURRENT_TIMESTAMP 
                        WHERE id = $2`,
                 values: [numericAmount, account_id]
             });
@@ -307,7 +298,7 @@ export const transferMoneyToAccount = async (req, res) => {
         await client.query({
             text: `UPDATE tblaccount 
                    SET account_balance = account_balance - $1,
-                       updatedat = CURRENT_TIMESTAMP 
+                       updated_at = CURRENT_TIMESTAMP 
                    WHERE id = $2 RETURNING *`,
             values: [numericAmount, from_account]
         });
@@ -315,7 +306,7 @@ export const transferMoneyToAccount = async (req, res) => {
         await client.query({
             text: `UPDATE tblaccount 
                    SET account_balance = account_balance + $1,
-                       updatedat = CURRENT_TIMESTAMP 
+                       updated_at = CURRENT_TIMESTAMP 
                    WHERE id = $2 RETURNING *`,
             values: [numericAmount, to_account]
         });

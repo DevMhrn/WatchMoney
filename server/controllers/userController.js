@@ -4,7 +4,6 @@ import { hashPassword, comparePassword } from "../config/encrypt-decrypt.js";
 export const getUser = async (req, res) => {
     try {
         const {userId} = req.body.user;
-        //const { id } = req.params; // didn't work because the id is not passed in the request
         const user = await pool.query({
             text: 'SELECT * FROM tbluser WHERE id = $1',
             values: [userId]
@@ -33,7 +32,7 @@ export const getUser = async (req, res) => {
 export const updateUser = async (req, res) => {
     try {
         const { userId } = req.body.user;
-        const { firstname, lastname, email, contact, currency, country } = req.body;
+        const { firstName, lastName, email, contact, currency, country } = req.body;
 
         // Validate input fields first
         if (currency && currency.length > 3) {
@@ -70,8 +69,8 @@ export const updateUser = async (req, res) => {
         const values = [];
         let valueCount = 1;
 
-        if (firstname) { updates.push(`firstname = $${valueCount}`); values.push(firstname); valueCount++; }
-        if (lastname) { updates.push(`lastname = $${valueCount}`); values.push(lastname); valueCount++; }
+        if (firstName) { updates.push(`firstName = $${valueCount}`); values.push(firstName); valueCount++; }
+        if (lastName) { updates.push(`lastName = $${valueCount}`); values.push(lastName); valueCount++; }
         if (email) { updates.push(`email = $${valueCount}`); values.push(email); valueCount++; }
         if (contact) { updates.push(`contact = $${valueCount}`); values.push(contact); valueCount++; }
         if (currency) { updates.push(`currency = $${valueCount}`); values.push(currency); valueCount++; }
@@ -90,7 +89,7 @@ export const updateUser = async (req, res) => {
 
         const query = `
             UPDATE tbluser 
-            SET ${updates.join(', ')} 
+            SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
             WHERE id = $${valueCount} 
             RETURNING *
         `;

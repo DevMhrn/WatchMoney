@@ -28,7 +28,7 @@ const signupUser = async (req, res) => {
         const hashedPassword = await hashPassword(password);
 
         const user = await pool.query({
-            text: 'INSERT INTO tbluser(firstname, email, password) VALUES($1, $2, $3) RETURNING *',
+            text: 'INSERT INTO tbluser(firstName, email, password) VALUES($1, $2, $3) RETURNING *',
             values: [firstName, email, hashedPassword]
         });
 

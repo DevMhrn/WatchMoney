@@ -39,7 +39,7 @@ const TransferMoney = ({ isOpen, setIsOpen, refetch }) => {
 
   const getAccountBalance = (setAccount, val) => {
     const filteredAccount = accountData?.find(
-      (account) => account.account_name === val
+      (account) => account.type_name === val
     );
     setAccount(filteredAccount || {});
   };
@@ -147,10 +147,10 @@ const TransferMoney = ({ isOpen, setIsOpen, refetch }) => {
                 {accountData?.map((acc, index) => (
                   <option
                     key={index}
-                    value={acc?.account_name}
+                    value={acc?.type_name}
                     className="dark:bg-slate-900"
                   >
-                    {acc?.account_name} {" - "}
+                    {acc?.type_name} {" - "}
                     {formatCurrency(acc?.account_balance)}
                   </option>
                 ))}
@@ -175,10 +175,10 @@ const TransferMoney = ({ isOpen, setIsOpen, refetch }) => {
                   .map((acc, index) => (
                     <option
                       key={index}
-                      value={acc?.account_name}
+                      value={acc?.type_name}
                       className="dark:bg-slate-900"
                     >
-                      {acc?.account_name} {" - "}
+                      {acc?.type_name} {" - "}
                       {formatCurrency(acc?.account_balance)}
                     </option>
                   ))}
