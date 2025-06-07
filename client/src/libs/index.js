@@ -23,11 +23,21 @@ export const formatCurrency = (value, currency) => {
   const numberValue = typeof value === "string" ? parseFloat(value) : value;
   const currencyCode = currency || user?.currency || "USD";
 
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode,
-    minimumFractionDigits: 2,
-  }).format(numberValue);
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currencyCode,
+      minimumFractionDigits: 2,
+    }).format(numberValue);
+  } catch (error) {
+    // Fallback if currency code is invalid
+    console.warn(`Invalid currency code: ${currencyCode}, falling back to USD`);
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+    }).format(numberValue);
+  }
 };
 
 export const formatCurrencyWithCode = (value, currency) => {
@@ -86,3 +96,150 @@ export function generateAccountNumber() {
   }
   return accountNumber.substr(0, 13);
 }
+
+export const getCurrencySymbol = (currency) => {
+  const symbols = {
+    'USD': '$',
+    'EUR': '€',
+    'GBP': '£',
+    'JPY': '¥',
+    'CAD': 'C$',
+    'AUD': 'A$',
+    'INR': '₹',
+    'CNY': '¥',
+    'CHF': 'CHF',
+    'SEK': 'kr',
+    'NOK': 'kr',
+    'DKK': 'kr',
+    'PLN': 'zł',
+    'CZK': 'Kč',
+    'HUF': 'Ft',
+    'RUB': '₽',
+    'BRL': 'R$',
+    'MXN': '$',
+    'ZAR': 'R',
+    'KRW': '₩',
+    'SGD': 'S$',
+    'HKD': 'HK$',
+    'NZD': 'NZ$',
+    'TRY': '₺',
+    'THB': '฿',
+    'MYR': 'RM',
+    'PHP': '₱',
+    'IDR': 'Rp',
+    'VND': '₫',
+    'AED': 'د.إ',
+    'SAR': '﷼',
+    'QAR': '﷼',
+    'KWD': 'د.ك',
+    'BHD': '.د.ب',
+    'OMR': '﷼',
+    'JOD': 'د.ا',
+    'EGP': '£',
+    'LBP': '£',
+    'ILS': '₪',
+    'PKR': '₨',
+    'LKR': '₨',
+    'NPR': '₨',
+    'BGN': 'лв',
+    'RON': 'lei',
+    'HRK': 'kn',
+    'RSD': 'дин',
+    'ISK': 'kr',
+    'CLP': '$',
+    'COP': '$',
+    'PEN': 'S/',
+    'UYU': '$U',
+    'BOB': '$b',
+    'PYG': 'Gs',
+    'GHS': '¢',
+    'NGN': '₦',
+    'KES': 'KSh',
+    'UGX': 'USh',
+    'TZS': 'TSh',
+    'ETB': 'Br',
+    'MAD': 'د.م.',
+    'TND': 'د.ت',
+    'DZD': 'دج',
+    'TWD': 'NT$',
+    'HNL': 'L',
+    'GTQ': 'Q',
+    'NIO': 'C$',
+    'CRC': '₡',
+    'PAB': 'B/.',
+    'JMD': 'J$',
+    'BBD': 'Bds$',
+    'TTD': 'TT$',
+    'XCD': 'EC$',
+    'BSD': 'B$',
+    'BZD': 'BZ$',
+    'FJD': 'FJ$',
+    'SBD': 'SI$',
+    'TOP': 'T$',
+    'WST': 'WS$',
+    'VUV': 'VT',
+    'PGK': 'K',
+    'MOP': 'MOP$',
+    'BND': 'B$',
+    'KHR': '៛',
+    'LAK': '₭',
+    'MMK': 'K',
+    'MNT': '₮',
+    'KZT': '₸',
+    'UZS': 'лв',
+    'KGS': 'лв',
+    'TJS': 'SM',
+    'TMT': 'T',
+    'AFN': '؋',
+    'IRR': '﷼',
+    'IQD': 'ع.د',
+    'SYP': '£',
+    'LYD': 'ل.د',
+    'SDG': 'ج.س.',
+    'SOS': 'S',
+    'DJF': 'Fdj',
+    'ERN': 'Nfk',
+    'MWK': 'MK',
+    'ZMW': 'ZK',
+    'BWP': 'P',
+    'SZL': 'E',
+    'LSL': 'M',
+    'NAD': 'N$',
+    'ANG': 'ƒ',
+    'AWG': 'ƒ',
+    'SRD': '$',
+    'GYD': '$',
+    'FKP': '£',
+    'SHP': '£',
+    'GIP': '£',
+    'JEP': '£',
+    'GGP': '£',
+    'IMP': '£',
+  };
+  
+  // Return the symbol if found, otherwise return the currency code itself
+  return symbols[currency?.toUpperCase()] || currency || '$';
+};
+
+// Enhanced formatCurrency function that uses getCurrencySymbol as fallback
+export const formatCurrencyWithSymbol = (value, currency) => {
+  if (isNaN(value)) {
+    return "Invalid input";
+  }
+
+  const numberValue = typeof value === "string" ? parseFloat(value) : value;
+  const currencyCode = currency || 'USD';
+  
+  try {
+    // Try to use Intl.NumberFormat first
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currencyCode,
+      minimumFractionDigits: 2,
+    }).format(numberValue);
+  } catch (error) {
+    // Fallback to manual formatting with symbol
+    const symbol = getCurrencySymbol(currencyCode);
+    return `${symbol}${numberValue.toFixed(2)}`;
+  }
+};

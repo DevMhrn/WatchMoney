@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { IoSearchOutline, IoCheckmarkDoneCircle } from "react-icons/io5";
-import { MdAdd } from "react-icons/md";
+import { IoSearchOutline, IoCheckmarkDoneCircle, IoFilterOutline } from "react-icons/io5";
+import { MdAdd, MdTrendingUp, MdTrendingDown, MdAccountBalance } from "react-icons/md";
 import { CiExport } from "react-icons/ci";
 import { RiProgress3Line } from "react-icons/ri";
 import { TiWarning } from "react-icons/ti";
+import { BiPlus, BiDownload, BiFilter } from "react-icons/bi";
+import { HiOutlineCurrencyDollar } from "react-icons/hi";
 import { toast } from "sonner";
 import api from "../libs/apiCalls";
 import Title from "../components/Title";
@@ -32,6 +34,11 @@ const Transactions = () => {
 
   const startDate = searchParams.get("df") || "";
   const endDate = searchParams.get("dt") || "";
+
+  // Calculate summary statistics
+  const totalIncome = data?.filter(t => t.type === "income").reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0;
+  const totalExpenses = data?.filter(t => t.type === "expense").reduce((sum, t) => sum + parseFloat(t.amount), 0) || 0;
+  const netAmount = totalIncome - totalExpenses;
 
   const handleViewTransaction = (el) => {
     setSelected(el);
@@ -127,14 +134,18 @@ const Transactions = () => {
   if (isLoading) {
     return (
       <div className="w-full py-10">
-        {/* Header shimmer */}
-        <div className='flex flex-col md:flex-row md:items-center justify-between mb-10'>
-          <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-48 rounded"></div>
-          <div className='flex flex-col md:flex-row md:items-center gap-4'>
+        {/* Enhanced header shimmer */}
+        <div className="mb-8">
+          <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-8 w-64 rounded mb-6"></div>
+
+          {/* Controls shimmer */}
+          <div className='flex flex-col md:flex-row md:items-center justify-between mb-6'>
             <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-48 rounded"></div>
-            <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-64 rounded"></div>
-            <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-20 rounded"></div>
-            <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-24 rounded"></div>
+            <div className='flex flex-col md:flex-row md:items-center gap-4'>
+              <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-64 rounded"></div>
+              <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-32 rounded"></div>
+              <div className="animate-pulse bg-gray-200 dark:bg-gray-700 h-10 w-24 rounded"></div>
+            </div>
           </div>
         </div>
         
@@ -147,127 +158,210 @@ const Transactions = () => {
   return (
     <>
       <div className="w-full py-10">
-        <div className='flex flex-col md:flex-row md:items-center justify-between mb-10'>
-          <Title title='Transactions Activity' />
-          <div className='flex flex-col md:flex-row md:items-center gap-4'>
-            <DateRange />
-            
-            {/* Search Form */}
-            <div className='w-full flex items-center gap-2 border border-gray-300 dark:border-gray-600 rounded-md px-2 py-2'>
-              <IoSearchOutline className='text-xl text-gray-600 dark:text-gray-500' />
-              <input
-                ref={searchInputRef}
-                value={search}
-                onChange={handleSearchChange}
-                type='text'
-                placeholder='Search now...'
-                className='outline-none bg-transparent text-gray-700 dark:text-gray-400 placeholder:text-gray-600 w-full'
-              />
+        {/* Header */}
+        <div className="mb-8">
+          <Title title='Transaction Activity' />
+        </div>
+
+        {/* Controls Section */}
+        <div className='bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-slate-700 mb-6'>
+          <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4'>
+            <div className="flex items-center gap-4">
+              <DateRange />
+              
+              {/* Enhanced Search */}
+              <div className='relative'>
+                <div className='flex items-center gap-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl px-4 py-3 min-w-[300px] focus-within:ring-2 focus-within:ring-violet-500 focus-within:border-transparent transition-all duration-200'>
+                  <IoSearchOutline className='text-xl text-gray-500 dark:text-gray-400' />
+                  <input
+                    ref={searchInputRef}
+                    value={search}
+                    onChange={handleSearchChange}
+                    type='text'
+                    placeholder='Search transactions...'
+                    className='outline-none bg-transparent text-gray-700 dark:text-gray-300 placeholder:text-gray-500 dark:placeholder:text-gray-400 w-full font-medium'
+                  />
+                  {search && (
+                    <button
+                      onClick={() => setSearch('')}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <button
-              onClick={() => setIsOpen(true)}
-              className='py-1.5 px-2 rounded bg-black dark:bg-violet-800 text-white flex items-center justify-center gap-2'
-            >
-              <MdAdd size={22} />
-              <span>Pay</span>
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Add Transaction Button */}
+              <button
+                onClick={() => setIsOpen(true)}
+                className='py-3 px-6 rounded-xl bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 text-white flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 font-medium'
+              >
+                <BiPlus size={20} />
+                <span>Add Transaction</span>
+              </button>
 
-            <button
-              onClick={() => {
-                const exportStartDate = startDate ? startDate : new Date().toLocaleDateString("en-CA");
-                const exportEndDate = endDate ? endDate : new Date().toLocaleDateString("en-CA");
-                exportToExcel(data, `Transactions ${exportStartDate}-${exportEndDate}`);
-              }}
-              className='flex items-center gap-2 text-black dark:text-gray-300'
-            >
-              Export <CiExport size={24} />
-            </button>
+              {/* Export Button */}
+              <button
+                onClick={() => {
+                  const exportStartDate = startDate ? startDate : new Date().toLocaleDateString("en-CA");
+                  const exportEndDate = endDate ? endDate : new Date().toLocaleDateString("en-CA");
+                  exportToExcel(data, `Transactions ${exportStartDate}-${exportEndDate}`);
+                  toast.success('Transactions exported successfully!');
+                }}
+                className='py-3 px-4 rounded-xl bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 flex items-center gap-2 transition-all duration-200 font-medium border border-gray-200 dark:border-slate-600'
+              >
+                <BiDownload size={18} />
+                <span className="hidden sm:inline">Export</span>
+              </button>
+            </div>
           </div>
         </div>
+        <p className="text-gray-600 dark:text-gray-400 mb-6 ml-4">
+            Monitor and manage your financial transactions
+        </p>
 
-        <div className='overflow-x-auto mt-5'>
+        {/* Transactions Table */}
+        <div className='bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 overflow-hidden'>
           {data?.length === 0 ? (
-            <div className='w-full flex items-center justify-center py-10 text-gray-600 dark:text-gray-700 text-lg'>
-              <span>No Transaction History</span>
+            <div className='w-full flex flex-col items-center justify-center py-16'>
+              <div className="w-20 h-20 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center mb-4">
+                <HiOutlineCurrencyDollar size={40} className="text-gray-400 dark:text-gray-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400 mb-2">No Transactions Found</h3>
+              <p className="text-gray-500 dark:text-gray-500 text-center mb-6">
+                {search ? `No transactions match "${search}"` : 'Start by adding your first transaction'}
+              </p>
+              {!search && (
+                <button
+                  onClick={() => setIsOpen(true)}
+                  className='py-2.5 px-5 rounded-lg bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 text-white flex items-center gap-2 transition-all duration-200 font-medium'
+                >
+                  <BiPlus size={18} />
+                  Add Transaction
+                </button>
+              )}
             </div>
           ) : (
-            <table className='w-full'>
-              <thead className='w-full border-b border-gray-300 dark:border-gray-700'>
-                <tr className='w-full text-black dark:text-gray-400 text-left'>
-                  <th className='py-2'>Date</th>
-                  <th className='py-2 px-2'>Description</th>
-                  <th className='py-2 px-2'>Status</th>
-                  <th className='py-2 px-2'>Source</th>
-                  <th className='py-2 px-2'>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data?.map((item, index) => (
-                  <tr
-                    key={index}
-                    className='w-full border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-slate-800'
-                  >
-                    <td className='py-4'>
-                      <p className='w-24 md:w-auto text-gray-600 dark:text-gray-400'>
-                        {new Date(item.createdat).toDateString()}
-                      </p>
-                    </td>
-
-                    <td className='py-4 px-2'>
-                      <div className='flex flex-col w-56 md:w-auto'>
-                        <p className='text-base 2xl:text-lg text-black dark:text-gray-400 line-clamp-2'>
-                          {item.description}
-                        </p>
-                      </div>
-                    </td>
-
-                    <td className='py-4 px-2'>
-                      <div className='flex items-center gap-2'>
-                        {item.status === "Pending" && (
-                          <RiProgress3Line className='text-amber-600' size={24} />
-                        )}
-                        {item.status === "Completed" && (
-                          <IoCheckmarkDoneCircle className='text-emerald-600' size={24} />
-                        )}
-                        {item.status === "Rejected" && (
-                          <TiWarning className='text-red-600' size={24} />
-                        )}
-                        <span className='text-gray-600 dark:text-gray-400'>
-                          {item.status}
-                        </span>
-                      </div>
-                    </td>
-
-                    <td className='py-4 px-2 text-gray-600 dark:text-gray-400'>
-                      {item.source}
-                    </td>
-
-                    <td className='py-4 px-2'>
-                      <span className={`text-lg font-bold ${
-                        item.type === "income" 
-                          ? "text-emerald-600 dark:text-emerald-400" 
-                          : "text-red-600 dark:text-red-400"
-                      }`}>
-                        {item.type === "income" ? "+" : "-"}
-                        {formatCurrency(item.amount, item.currency)}
-                      </span>
-                    </td>
-
-                    <td className='py-4 px-2'>
-                      <button
-                        onClick={() => handleViewTransaction(item)}
-                        className='outline-none text-violet-600 dark:text-violet-400 hover:underline'
-                      >
-                        View
-                      </button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className='w-full'>
+                <thead className='bg-gray-50 dark:bg-slate-700/50'>
+                  <tr className='text-gray-700 dark:text-gray-300 text-left'>
+                    <th className='py-4 px-6 font-semibold text-sm'>Date</th>
+                    <th className='py-4 px-6 font-semibold text-sm'>Description</th>
+                    <th className='py-4 px-6 font-semibold text-sm'>Status</th>
+                    <th className='py-4 px-6 font-semibold text-sm'>Source</th>
+                    <th className='py-4 px-6 font-semibold text-sm'>Amount</th>
+                    <th className='py-4 px-6 font-semibold text-sm'>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                  {data?.map((item, index) => (
+                    <tr
+                      key={index}
+                      className='hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors duration-150'
+                    >
+                      <td className='py-4 px-6'>
+                        <div className="flex flex-col">
+                          <p className='text-sm font-medium text-gray-900 dark:text-gray-300'>
+                            {new Date(item.createdat).toLocaleDateString("en-US", {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </p>
+                          <p className='text-xs text-gray-500 dark:text-gray-400'>
+                            {new Date(item.createdat).toLocaleTimeString("en-US", {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      </td>
+
+                      <td className='py-4 px-6'>
+                        <div className='max-w-xs'>
+                          <p className='text-sm font-medium text-gray-900 dark:text-gray-300 line-clamp-2'>
+                            {item.description}
+                          </p>
+                        </div>
+                      </td>
+
+                      <td className='py-4 px-6'>
+                        <div className='flex items-center gap-2'>
+                          {item.status === "Pending" && (
+                            <>
+                              <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                              <span className='text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-full'>
+                                Pending
+                              </span>
+                            </>
+                          )}
+                          {item.status === "Completed" && (
+                            <>
+                              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                              <span className='text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-full'>
+                                Completed
+                              </span>
+                            </>
+                          )}
+                          {item.status === "Rejected" && (
+                            <>
+                              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                              <span className='text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-full'>
+                                Rejected
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className='py-4 px-6'>
+                        <span className='text-sm text-gray-600 dark:text-gray-400 font-medium'>
+                          {item.source}
+                        </span>
+                      </td>
+
+                      <td className='py-4 px-6'>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-lg font-bold ${
+                            item.type === "income" 
+                              ? "text-emerald-600 dark:text-emerald-400" 
+                              : "text-red-600 dark:text-red-400"
+                          }`}>
+                            {item.type === "income" ? "+" : "-"}
+                            {formatCurrency(item.amount, item.currency)}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className='py-4 px-6'>
+                        <button
+                          onClick={() => handleViewTransaction(item)}
+                          className='text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 font-medium text-sm hover:underline transition-colors duration-150'
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
+
+        {/* Results count */}
+        {data?.length > 0 && (
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Showing {data.length} transaction{data.length !== 1 ? 's' : ''}
+              {search && ` matching "${search}"`}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Modal components */}

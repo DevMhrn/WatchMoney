@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { BiLoader } from "react-icons/bi";
-import { MdOutlineWarning } from "react-icons/md";
+import { BiLoader, BiPlus } from "react-icons/bi";
+import { MdOutlineWarning, MdAccountBalance, MdVerifiedUser } from "react-icons/md";
 import { Dialog } from "@headlessui/react";
+import { FaUniversity, FaCreditCard } from "react-icons/fa";
 import {useStore} from "../store";
-import { generateAccountNumber } from "../libs";
+import { generateAccountNumber, getCurrencySymbol } from "../libs";
 import DialogWrapper from "./wrappers/dialog-wrapper";
 import Input from "./ui/input";
 import {Button} from "./ui/button";
@@ -20,6 +21,8 @@ export const AddAccount = ({ isOpen, setIsOpen, refetch }) => {
     register,
     handleSubmit,
     formState: { errors },
+    reset,
+    watch,
   } = useForm({
     defaultValues: { 
       account_number: generateAccountNumber(),
@@ -113,6 +116,7 @@ export const AddAccount = ({ isOpen, setIsOpen, refetch }) => {
       
       toast.success(res.message || 'Account created successfully!');
       setIsOpen(false);
+      reset();
       await refetch();
       
     } catch (error) {
@@ -123,135 +127,246 @@ export const AddAccount = ({ isOpen, setIsOpen, refetch }) => {
     }
   };
 
-
   function closeModal() {
     setIsOpen(false);
+    reset();
   }
+
+  const watchedAmount = watch("amount");
+  const watchedCurrency = watch("currency");
+
+  const currentCurrency = watchedCurrency || user?.currency || 'USD';
+  const currencySymbol = getCurrencySymbol(currentCurrency);
 
   return (
     <DialogWrapper isOpen={isOpen} closeModal={closeModal}>
-      <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-6 text-left align-middle shadow-xl transition-all">
-        <Dialog.Title
-          as="h3"
-          className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-300 mb-4 uppercase"
-        >
-          Add Account
-        </Dialog.Title>
+      <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-3xl bg-white dark:bg-slate-900 shadow-2xl transition-all border border-gray-100 dark:border-slate-700">
+        {/* Header with gradient background */}
+        <div className="bg-gradient-to-r from-violet-500 to-violet-600 px-6 py-6 text-white">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <MdAccountBalance size={24} />
+            </div>
+            <div>
+              <Dialog.Title as="h3" className="text-xl font-bold">
+                Create New Account
+              </Dialog.Title>
+              <p className="text-violet-100 text-sm">
+                Set up your financial account
+              </p>
+            </div>
+          </div>
+        </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {/* Account Type Selection */}
-          <div className='flex flex-col gap-1 mb-2'>
-            <p className='text-gray-700 dark:text-gray-300 text-sm mb-2'>
-              Select Account Type
-            </p>
-            
-            {typesLoading ? (
-              <div className="space-y-2">
-                <Shimmer className="h-10 w-full rounded border border-gray-300 dark:border-gray-600" />
-                <div className="flex items-center gap-2 mt-2">
-                  <Shimmer className="w-4 h-4 rounded" />
-                  <Shimmer className="h-3 w-32 rounded" />
+        {/* Form Content */}
+        <div className="p-6 max-h-[70vh] overflow-y-auto">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Account Type Selection */}
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Account Type
+              </label>
+              
+              {typesLoading ? (
+                <div className="space-y-3">
+                  <Shimmer className="h-12 w-full rounded-xl" />
+                  <div className="flex items-center gap-2">
+                    <Shimmer className="w-4 h-4 rounded" />
+                    <Shimmer className="h-3 w-32 rounded" />
+                  </div>
+                </div>
+              ) : (
+                <div className="relative">
+                  <select
+                    onChange={handleAccountSelect}
+                    value={selectedAccount}
+                    className="w-full appearance-none bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-gray-900 dark:text-gray-100 rounded-xl py-3 px-4 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-200 cursor-pointer"
+                  >
+                    <option value="" disabled>
+                      Choose account type
+                    </option>
+                    {accountTypes.map((accountType, index) => (
+                      <option
+                        key={index}
+                        value={accountType.type_name}
+                        className="dark:bg-slate-800 dark:text-gray-300"
+                      >
+                        {accountType.type_name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <FaCreditCard className="text-gray-400" size={16} />
+                  </div>
+                </div>
+              )}
+
+              {selectedAccount && isAccountExists(selectedAccount) && (
+                <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 p-4 rounded-xl">
+                  <MdOutlineWarning size={20} className="mt-0.5 flex-shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-medium mb-1">Account Already Exists</p>
+                    <p className="text-amber-700 dark:text-amber-300">
+                      This account type has already been activated. Please choose a different type.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Currency Selection */}
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Currency
+              </label>
+              
+              {currenciesLoading ? (
+                <Shimmer className="h-12 w-full rounded-xl" />
+              ) : (
+                <div className="relative">
+                  <select
+                    {...register("currency", {
+                      required: "Currency selection is required!",
+                    })}
+                    className="w-full appearance-none bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-gray-900 dark:text-gray-100 rounded-xl py-3 px-4 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-200 cursor-pointer"
+                  >
+                    {currencies.map((currency, index) => (
+                      <option
+                        key={index}
+                        value={currency}
+                        className="dark:bg-slate-800 dark:text-gray-300"
+                      >
+                        {currency}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <span className="text-gray-400 font-medium">{currencySymbol}</span>
+                  </div>
+                </div>
+              )}
+              {errors.currency && (
+                <p className="text-red-500 text-sm flex items-center gap-1">
+                  <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                  {errors.currency.message}
+                </p>
+              )}
+            </div>
+
+            {/* Account Number Input */}
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Account Number
+              </label>
+              <div className="relative">
+                <input
+                  {...register("account_number", {
+                    required: "Account Number is required!",
+                  })}
+                  placeholder="Generated automatically"
+                  className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-gray-900 dark:text-gray-100 rounded-xl py-3 px-4 focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-200 font-mono"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                  <FaUniversity className="text-gray-400" size={16} />
                 </div>
               </div>
-            ) : (
-              <select
-                onChange={handleAccountSelect}
-                value={selectedAccount}
-                className='bg-transparent appearance-none border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 outline-none focus:ring-1 ring-violet-500 dark:ring-violet-400 rounded w-full py-2 px-3 dark:bg-slate-800'
-              >
-                <option value="" disabled className="dark:bg-slate-900">
-                  Select Account Type
-                </option>
-                {accountTypes.map((accountType, index) => (
-                  <option
-                    key={index}
-                    value={accountType.type_name}
-                    className='w-full flex items-center justify-center dark:bg-slate-800 dark:text-gray-300'
-                  >
-                    {accountType.type_name}
-                  </option>
-                ))}
-              </select>
-            )}
+              {errors.account_number && (
+                <p className="text-red-500 text-sm flex items-center gap-1">
+                  <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                  {errors.account_number.message}
+                </p>
+              )}
+            </div>
 
-            {selectedAccount && isAccountExists(selectedAccount) && (
-              <div className='flex items-center gap-2 bg-yellow-400/10 dark:bg-yellow-400/20 border border-yellow-500 text-yellow-700 dark:text-yellow-500 p-2 mt-6 rounded'>
-                <MdOutlineWarning size={30} />
-                <span className='text-sm'>
-                  This account has already been activated. Try another one. Thank you.
-                </span>
+            {/* Initial Amount Input */}
+            <div className="space-y-3">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Initial Deposit ({currentCurrency})
+              </label>
+              <div className="relative flex items-center">
+                <div className="absolute left-3 z-10 flex items-center pointer-events-none">
+                  <span className="text-gray-500 dark:text-gray-400 text-lg font-medium bg-gray-50 dark:bg-slate-800 pr-2">
+                    {currencySymbol}
+                  </span>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  {...register("amount", {
+                    required: "Initial amount is required!",
+                    min: {
+                      value: 0,
+                      message: "Amount cannot be negative"
+                    }
+                  })}
+                  className="w-full py-3 pr-4 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-200 text-lg font-medium"
+                  style={{ 
+                    paddingLeft: `${Math.max(currencySymbol.length * 14 + 24, 60)}px`
+                  }}
+                />
+              </div>
+              {errors.amount && (
+                <p className="text-red-500 text-sm flex items-center gap-1">
+                  <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                  {errors.amount.message}
+                </p>
+              )}
+            </div>
+
+            {/* Account Summary Card */}
+            {selectedAccount && watchedAmount && (
+              <div className="bg-gradient-to-r from-violet-50 to-purple-50 dark:from-slate-800 dark:to-slate-700 rounded-xl p-4 border border-violet-100 dark:border-slate-600">
+                <div className="flex items-center gap-3 mb-2">
+                  <MdVerifiedUser className="text-violet-500" size={20} />
+                  <span className="font-semibold text-gray-800 dark:text-gray-200">Account Summary</span>
+                </div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Type:</span>
+                    <span className="font-medium text-gray-800 dark:text-gray-200">{selectedAccount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Currency:</span>
+                    <span className="font-medium text-gray-800 dark:text-gray-200">{currentCurrency}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Initial Balance:</span>
+                    <span className="font-medium text-violet-600 dark:text-violet-400">
+                      {currencySymbol}{parseFloat(watchedAmount || 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
-          </div>
 
-          {/* Currency Selection */}
-          <div className='flex flex-col gap-1 mb-2'>
-            <p className='text-gray-700 dark:text-gray-300 text-sm mb-2'>
-              Select Currency
-            </p>
-            
-            {currenciesLoading ? (
-              <Shimmer className="h-10 w-full rounded border border-gray-300 dark:border-gray-600" />
-            ) : (
-              <select
-                {...register("currency", {
-                  required: "Currency selection is required!",
-                })}
-                className='bg-transparent appearance-none border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 outline-none focus:ring-1 ring-violet-500 dark:ring-violet-400 rounded w-full py-2 px-3 dark:bg-slate-800'
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="flex-1 py-3 px-4 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors duration-200"
               >
-                {currencies.map((currency, index) => (
-                  <option
-                    key={index}
-                    value={currency}
-                    className='w-full flex items-center justify-center dark:bg-slate-800 dark:text-gray-300'
-                  >
-                    {currency}
-                  </option>
-                ))}
-              </select>
-            )}
-            {errors.currency && (
-              <span className="text-red-500 text-sm">{errors.currency.message}</span>
-            )}
-          </div>
-
-          {/* Account Number Input */}
-          <Input
-            name='account_number'
-            label='Account Number'
-            placeholder='3864736573648'
-            {...register("account_number", {
-              required: "Account Number is required!",
-            })}
-            error={errors.account_number ? errors.account_number.message : ""}
-            className="inputStyle dark:bg-slate-800 dark:text-gray-300 dark:border-gray-600"
-          />
-
-          {/* Initial Amount Input */}
-          <Input
-            type="number"
-            name="amount"
-            label="Initial Amount"
-            placeholder="10.56"
-            {...register("amount", {
-              required: "Initial amount is required!",
-            })}
-            error={errors.amount ? errors.amount.message : ""}
-            className="inputStyle dark:bg-slate-800 dark:text-gray-300 dark:border-gray-600"
-          />
-
-          <Button
-            disabled={loading || typesLoading || currenciesLoading || !selectedAccount}
-            type="submit"
-            className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white w-full mt-4 transition-colors disabled:opacity-50"
-          >
-            {loading ? (
-              <BiLoader className="text-xl animate-spin text-white" />
-            ) : (
-              "Create account"
-            )}
-          </Button>
-        </form>
+                Cancel
+              </button>
+              <button
+                disabled={loading || typesLoading || currenciesLoading || !selectedAccount || isAccountExists(selectedAccount)}
+                type="submit"
+                className="flex-1 py-3 px-4 bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <BiLoader className="text-xl animate-spin" />
+                ) : (
+                  <>
+                    <BiPlus size={18} />
+                    Create Account
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       </Dialog.Panel>
     </DialogWrapper>
   );

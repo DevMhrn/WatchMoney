@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { formatCurrency } from "../libs";
 import Title from "./Title";
 
-const RecentTransactions = ({ data }) => {
+const RecentTransactions = ({ data, searchTerm = "" }) => {
     const StatusIcon = ({ status }) => {
         switch (status) {
             case "Pending":
@@ -18,6 +18,16 @@ const RecentTransactions = ({ data }) => {
             default:
                 return null;
         }
+    };
+
+    const highlightText = (text, search) => {
+        if (!search || !text) return text;
+
+        const regex = new RegExp(`(${search})`, "gi");
+        return text.replace(
+            regex,
+            '<mark class="bg-yellow-200 dark:bg-yellow-800 px-1 rounded">$1</mark>'
+        );
     };
 
     return (
@@ -55,7 +65,18 @@ const RecentTransactions = ({ data }) => {
                                 <td className="px-2 py-3">
                                     <div className="flex flex-col">
                                         <p className="text-base font-medium text-black dark:text-gray-400 line-clamp-1">
-                                            {item?.description}
+                                            {searchTerm ? (
+                                                <span
+                                                    dangerouslySetInnerHTML={{
+                                                        __html: highlightText(
+                                                            item?.description,
+                                                            searchTerm
+                                                        ),
+                                                    }}
+                                                />
+                                            ) : (
+                                                item?.description
+                                            )}
                                         </p>
                                     </div>
                                 </td>
@@ -64,10 +85,26 @@ const RecentTransactions = ({ data }) => {
                                     <span>{item?.status}</span>
                                 </td>
                                 <td className="px-2 py-3">
-                                    <p className="line-clamp-1">{item?.source}</p>
+                                    <p className="line-clamp-1">
+                                        {searchTerm ? (
+                                            <span
+                                                dangerouslySetInnerHTML={{
+                                                    __html: highlightText(item?.source, searchTerm),
+                                                }}
+                                            />
+                                        ) : (
+                                            item?.source
+                                        )}
+                                    </p>
                                 </td>
                                 <td className="flex items-center px-2 py-4 font-medium">
-                                    <span className={item?.type === "income" ? "text-emerald-600" : "text-red-600"}>
+                                    <span
+                                        className={
+                                            item?.type === "income"
+                                                ? "text-emerald-600"
+                                                : "text-red-600"
+                                        }
+                                    >
                                         {item?.type === "income" ? "+" : "-"}
                                     </span>
                                     {formatCurrency(item?.amount, item?.currency)}
