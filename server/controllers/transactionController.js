@@ -1,4 +1,5 @@
 import { pool } from "../config/dbConfig.js";
+import currencyService from "../services/currencyService.js";
 
 const getMonthName = (index) => {
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 
@@ -71,28 +72,43 @@ export const getTransactions = async (req, res) => {
 export const getDashboardInformation = async (req, res) => {
     try {
         const { userId } = req.body.user;
+        const { currency } = req.query;
         
-        // Get transaction totals
-        const totalsResult = await pool.query({
-            text: `SELECT type, SUM(amount) as total 
-                   FROM tbltransaction 
-                   WHERE user_id = $1 
-                   GROUP BY type`,
+        // Get user's preferred currency
+        const user = await pool.query({
+            text: 'SELECT currency FROM tbluser WHERE id = $1',
+            values: [userId]
+        });
+        
+        const targetCurrency = currency || user.rows[0]?.currency || 'USD';
+        
+        // Get consolidated totals in target currency
+        const consolidatedBalance = await currencyService.getConsolidatedBalance(userId, targetCurrency);
+        
+        // Get transaction totals with currency conversion
+        const transactions = await pool.query({
+            text: `SELECT type, amount, currency FROM tbltransaction WHERE user_id = $1`,
             values: [userId]
         });
 
         let totalIncome = 0;
         let totalExpense = 0;
 
-        totalsResult.rows.forEach(row => {
-            if (row.type === 'income') {
-                totalIncome = parseFloat(row.total) || 0;
-            } else {
-                totalExpense = parseFloat(row.total) || 0;
-            }
-        });
+        for (const transaction of transactions.rows) {
+            const convertedAmount = await currencyService.convertAmount(
+                parseFloat(transaction.amount),
+                transaction.currency,
+                targetCurrency
+            );
 
-        // Get monthly data for current year
+            if (transaction.type === 'income') {
+                totalIncome += convertedAmount;
+            } else if (transaction.type === 'expense') {
+                totalExpense += convertedAmount;
+            }
+        }
+
+        // Get monthly data for current year with currency conversion
         const year = new Date().getFullYear();
         const startDate = new Date(year, 0, 1);
         const endDate = new Date(year, 11, 31, 23, 59, 59);
@@ -101,28 +117,37 @@ export const getDashboardInformation = async (req, res) => {
             text: `SELECT 
                     EXTRACT(MONTH FROM created_at) AS month,
                     type,
-                    SUM(amount) AS totalamount 
+                    amount,
+                    currency
                    FROM tbltransaction 
                    WHERE user_id = $1 
-                   AND created_at BETWEEN $2 AND $3 
-                   GROUP BY EXTRACT(MONTH FROM created_at), type`,
+                   AND created_at BETWEEN $2 AND $3`,
             values: [userId, startDate, endDate]
         });
 
-        // Format chart data using my approach
-        const data = new Array(12).fill().map((_, index) => {
-            const monthData = result.rows.filter(
-                (item) => parseInt(item.month) === index + 1
+        // Format chart data with currency conversion
+        const monthlyData = new Array(12).fill().map(() => ({ income: 0, expense: 0 }));
+        
+        for (const transaction of result.rows) {
+            const month = parseInt(transaction.month) - 1;
+            const convertedAmount = await currencyService.convertAmount(
+                parseFloat(transaction.amount),
+                transaction.currency,
+                targetCurrency
             );
-            const income = monthData.find((item) => item.type === "income")?.totalamount || 0;
-            const expense = monthData.find((item) => item.type === "expense")?.totalamount || 0;
 
-            return {
-                label: getMonthName(index),
-                income,
-                expense,
-            };
-        });
+            if (transaction.type === 'income') {
+                monthlyData[month].income += convertedAmount;
+            } else if (transaction.type === 'expense') {
+                monthlyData[month].expense += convertedAmount;
+            }
+        }
+
+        const data = monthlyData.map((monthData, index) => ({
+            label: getMonthName(index),
+            income: monthData.income,
+            expense: monthData.expense,
+        }));
 
         // Get recent data
         const [recentTransactions, recentAccounts] = await Promise.all([
@@ -143,9 +168,10 @@ export const getDashboardInformation = async (req, res) => {
         return res.status(200).json({
             status: true,
             dashboard: {
-                availableBalance: totalIncome - totalExpense,
+                availableBalance: consolidatedBalance,
                 totalIncome,
                 totalExpense,
+                currency: targetCurrency,
                 chartData: data,
                 lastTransactions: recentTransactions.rows,
                 lastAccounts: recentAccounts.rows
@@ -240,11 +266,11 @@ export const addTransaction = async (req, res) => {
 };
 
 export const transferMoneyToAccount = async (req, res) => {
-    const client = await pool.connect(); // Get a dedicated client for transaction
+    const client = await pool.connect();
 
     try {
         const { userId } = req.body.user;
-        const { from_account, to_account, amount } = req.body;
+        const { from_account, to_account, amount, transfer_currency, exchange_rate = 1, converted_amount } = req.body;
 
         if (!from_account || !to_account || !amount) {
             return res.status(400).json({
@@ -254,6 +280,19 @@ export const transferMoneyToAccount = async (req, res) => {
         }
 
         const numericAmount = Number(amount);
+        const numericExchangeRate = Number(exchange_rate);
+        
+        // Fix: Use the correct converted amount for balance checking
+        // If transfer currency is different from account currency, use converted_amount
+        // Otherwise, use the original amount
+        let actualDeductAmount;
+        
+        if (converted_amount && transfer_currency) {
+            actualDeductAmount = Number(converted_amount);
+        } else {
+            actualDeductAmount = numericAmount;
+        }
+
         if (isNaN(numericAmount) || numericAmount <= 0) {
             return res.status(400).json({
                 status: false,
@@ -261,16 +300,22 @@ export const transferMoneyToAccount = async (req, res) => {
             });
         }
 
-        await client.query('BEGIN'); // Begin transaction
+        await client.query('BEGIN');
 
-        // Get both accounts with FOR UPDATE to lock rows
+        // Get both accounts with account type names using JOIN
         const [fromAccountResult, toAccountResult] = await Promise.all([
             client.query({
-                text: 'SELECT * FROM tblaccount WHERE id = $1 AND user_id = $2 FOR UPDATE',
+                text: `SELECT a.*, at.type_name 
+                       FROM tblaccount a 
+                       JOIN tblaccounttype at ON a.account_type_id = at.id 
+                       WHERE a.id = $1 AND a.user_id = $2 FOR UPDATE`,
                 values: [from_account, userId]
             }),
             client.query({
-                text: 'SELECT * FROM tblaccount WHERE id = $1 AND user_id = $2 FOR UPDATE',
+                text: `SELECT a.*, at.type_name 
+                       FROM tblaccount a 
+                       JOIN tblaccounttype at ON a.account_type_id = at.id 
+                       WHERE a.id = $1 AND a.user_id = $2 FOR UPDATE`,
                 values: [to_account, userId]
             })
         ]);
@@ -286,57 +331,84 @@ export const transferMoneyToAccount = async (req, res) => {
         const fromAccount = fromAccountResult.rows[0];
         const toAccount = toAccountResult.rows[0];
 
-        if (fromAccount.account_balance < numericAmount) {
+        // Fix: Check balance using the correct amount in account's currency
+        console.log('Balance Check:', {
+            accountBalance: fromAccount.account_balance,
+            deductAmount: actualDeductAmount,
+            transferAmount: numericAmount,
+            transferCurrency: transfer_currency,
+            accountCurrency: fromAccount.currency
+        });
+
+        if (fromAccount.account_balance < actualDeductAmount) {
             await client.query('ROLLBACK');
             return res.status(400).json({
                 status: false,
-                message: "Insufficient balance in source account"
+                message: `Insufficient balance. Required: ${actualDeductAmount} ${fromAccount.currency}, Available: ${fromAccount.account_balance} ${fromAccount.currency}`
             });
         }
 
-        // Update accounts one at a time to ensure consistency
+        // Update accounts - deduct from source account in its currency
         await client.query({
             text: `UPDATE tblaccount 
                    SET account_balance = account_balance - $1,
                        updated_at = CURRENT_TIMESTAMP 
                    WHERE id = $2 RETURNING *`,
-            values: [numericAmount, from_account]
+            values: [actualDeductAmount, from_account]
         });
 
+        // Convert transfer amount to destination account currency if needed
+        let toAccountAmount = numericAmount;
+        if (transfer_currency !== toAccount.currency) {
+            // Get exchange rate from transfer currency to destination currency
+            const destinationRate = await currencyService.getExchangeRate(transfer_currency, toAccount.currency);
+            toAccountAmount = numericAmount * destinationRate;
+        }
+
+        // Add to destination account in its currency
         await client.query({
             text: `UPDATE tblaccount 
                    SET account_balance = account_balance + $1,
                        updated_at = CURRENT_TIMESTAMP 
                    WHERE id = $2 RETURNING *`,
-            values: [numericAmount, to_account]
+            values: [toAccountAmount, to_account]
         });
 
-        // Record transactions
+        // Create transaction records
         await Promise.all([
+            // Debit transaction - record in transfer currency but show deducted amount
             client.query({
                 text: `INSERT INTO tbltransaction 
-                       (user_id, description, type, status, amount, source)
-                       VALUES ($1, $2, $3, $4, $5, $6)`,
+                       (user_id, account_id, description, type, status, amount, source, currency, exchange_rate, base_currency_amount)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                 values: [
                     userId,
-                    `Transfer to ${toAccount.account_name}`,
+                    from_account,
+                    `Transfer to ${toAccount.type_name}`,
                     'expense',
                     'Completed',
-                    numericAmount,
-                    fromAccount.account_name
+                    numericAmount, // Amount in transfer currency
+                    fromAccount.type_name,
+                    transfer_currency || fromAccount.currency,
+                    numericExchangeRate,
+                    actualDeductAmount // Actual amount deducted from account
                 ]
             }),
+            // Credit transaction in destination account currency
             client.query({
                 text: `INSERT INTO tbltransaction 
-                       (user_id, description, type, status, amount, source)
-                       VALUES ($1, $2, $3, $4, $5, $6)`,
+                       (user_id, account_id, description, type, status, amount, source, currency, base_currency_amount)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
                 values: [
                     userId,
-                    `Transfer from ${fromAccount.account_name}`,
+                    to_account,
+                    `Transfer from ${fromAccount.type_name}`,
                     'income',
                     'Completed',
-                    numericAmount,
-                    toAccount.account_name
+                    toAccountAmount,
+                    toAccount.type_name,
+                    toAccount.currency,
+                    toAccountAmount
                 ]
             })
         ]);
@@ -357,6 +429,6 @@ export const transferMoneyToAccount = async (req, res) => {
             error: error.message
         });
     } finally {
-        client.release(); // Release the client back to the pool
+        client.release();
     }
 };

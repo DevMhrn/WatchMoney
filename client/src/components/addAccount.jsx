@@ -11,6 +11,7 @@ import {Button} from "./ui/button";
 import { Shimmer } from "./ui/shimmer";
 import { toast } from 'sonner';
 import api from '../libs/apiCalls';
+import currencyService from '../services/currencyService';
 
 export const AddAccount = ({ isOpen, setIsOpen, refetch }) => {
   const { user } = useStore((state) => state);
@@ -20,13 +21,18 @@ export const AddAccount = ({ isOpen, setIsOpen, refetch }) => {
     handleSubmit,
     formState: { errors },
   } = useForm({
-    defaultValues: { account_number: generateAccountNumber() },
+    defaultValues: { 
+      account_number: generateAccountNumber(),
+      currency: user?.currency || 'USD'
+    },
   });
 
   const [accountTypes, setAccountTypes] = useState([]);
   const [selectedAccount, setSelectedAccount] = useState("");
   const [loading, setLoading] = useState(false);
   const [typesLoading, setTypesLoading] = useState(false);
+  const [currencies, setCurrencies] = useState([]);
+  const [currenciesLoading, setCurrenciesLoading] = useState(false);
 
   // Fetch account types from API
   const fetchAccountTypes = async () => {
@@ -57,16 +63,33 @@ export const AddAccount = ({ isOpen, setIsOpen, refetch }) => {
     }
   };
 
+  // Fetch supported currencies
+  const fetchSupportedCurrencies = async () => {
+    try {
+      setCurrenciesLoading(true);
+      const supportedCurrencies = await currencyService.getSupportedCurrencies();
+      setCurrencies(supportedCurrencies || []);
+    } catch (error) {
+      console.error('Failed to load currencies:', error);
+      // Fallback currencies
+      setCurrencies(['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD']);
+    } finally {
+      setCurrenciesLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchAccountTypes();
+      fetchSupportedCurrencies();
     }
   }, [isOpen]);
 
   // Add this function to check if account exists
   const isAccountExists = (accountName) => {
-    return user?.accounts?.some(
-      acc => acc.toLowerCase() === accountName.toLowerCase()
+    if (!user?.accounts || !accountName) return false;
+    return user.accounts.some(
+      account => account?.name?.toLowerCase() === accountName.toLowerCase()
     );
   };
 
@@ -80,9 +103,10 @@ export const AddAccount = ({ isOpen, setIsOpen, refetch }) => {
     try {
       setLoading(true);
       const newData = {
-        account_type_name: selectedAccount, // Changed from account_name
+        account_type_name: selectedAccount,
         account_number: data.account_number,
-        account_balance: data.amount
+        account_balance: data.amount,
+        currency: data.currency
       };
 
       const { data: res } = await api.post('/accounts/create', newData);
@@ -115,6 +139,7 @@ export const AddAccount = ({ isOpen, setIsOpen, refetch }) => {
         </Dialog.Title>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Account Type Selection */}
           <div className='flex flex-col gap-1 mb-2'>
             <p className='text-gray-700 dark:text-gray-300 text-sm mb-2'>
               Select Account Type
@@ -159,6 +184,38 @@ export const AddAccount = ({ isOpen, setIsOpen, refetch }) => {
             )}
           </div>
 
+          {/* Currency Selection */}
+          <div className='flex flex-col gap-1 mb-2'>
+            <p className='text-gray-700 dark:text-gray-300 text-sm mb-2'>
+              Select Currency
+            </p>
+            
+            {currenciesLoading ? (
+              <Shimmer className="h-10 w-full rounded border border-gray-300 dark:border-gray-600" />
+            ) : (
+              <select
+                {...register("currency", {
+                  required: "Currency selection is required!",
+                })}
+                className='bg-transparent appearance-none border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 outline-none focus:ring-1 ring-violet-500 dark:ring-violet-400 rounded w-full py-2 px-3 dark:bg-slate-800'
+              >
+                {currencies.map((currency, index) => (
+                  <option
+                    key={index}
+                    value={currency}
+                    className='w-full flex items-center justify-center dark:bg-slate-800 dark:text-gray-300'
+                  >
+                    {currency}
+                  </option>
+                ))}
+              </select>
+            )}
+            {errors.currency && (
+              <span className="text-red-500 text-sm">{errors.currency.message}</span>
+            )}
+          </div>
+
+          {/* Account Number Input */}
           <Input
             name='account_number'
             label='Account Number'
@@ -170,6 +227,7 @@ export const AddAccount = ({ isOpen, setIsOpen, refetch }) => {
             className="inputStyle dark:bg-slate-800 dark:text-gray-300 dark:border-gray-600"
           />
 
+          {/* Initial Amount Input */}
           <Input
             type="number"
             name="amount"
@@ -183,7 +241,7 @@ export const AddAccount = ({ isOpen, setIsOpen, refetch }) => {
           />
 
           <Button
-            disabled={loading || typesLoading || !selectedAccount}
+            disabled={loading || typesLoading || currenciesLoading || !selectedAccount}
             type="submit"
             className="bg-violet-700 hover:bg-violet-800 dark:bg-violet-600 dark:hover:bg-violet-700 text-white w-full mt-4 transition-colors disabled:opacity-50"
           >

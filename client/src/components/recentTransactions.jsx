@@ -70,7 +70,7 @@ const RecentTransactions = ({ data }) => {
                                     <span className={item?.type === "income" ? "text-emerald-600" : "text-red-600"}>
                                         {item?.type === "income" ? "+" : "-"}
                                     </span>
-                                    {formatCurrency(item?.amount)}
+                                    {formatCurrency(item?.amount, item?.currency)}
                                 </td>
                             </tr>
                         ))}

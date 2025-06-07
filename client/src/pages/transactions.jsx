@@ -250,7 +250,7 @@ const Transactions = () => {
                           : "text-red-600 dark:text-red-400"
                       }`}>
                         {item.type === "income" ? "+" : "-"}
-                        {formatCurrency(item.amount)}
+                        {formatCurrency(item.amount, item.currency)}
                       </span>
                     </td>
 

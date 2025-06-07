@@ -200,7 +200,7 @@ const AccountPage = () => {
 
                   <div className="flex items-center justify-between">
                     <p className="text-xl text-gray-600 dark:text-gray-400 font-medium">
-                      {formatCurrency(acc?.account_balance)}
+                      {formatCurrency(acc?.account_balance, acc?.currency)}
                     </p>
                     <button
                       onClick={() => handleOpenAddMoney(acc)}
