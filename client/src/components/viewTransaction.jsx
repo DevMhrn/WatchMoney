@@ -41,16 +41,28 @@ const ViewTransaction = ({ data, isOpen, setIsOpen }) => {
           </div>
 
           <div className='mt-10 mb-3 flex justify-between items-center'>
-            <p className={`text-2xl font-bold ${
-              data?.type === "income" 
-                ? "text-emerald-600" 
-                : "text-red-600"
-            }`}>
-              <span className="font-bold">
-                {data?.type === "income" ? "+" : "-"}
-              </span>{" "}
-              {formatCurrency(data?.amount)}
-            </p>
+            <div className="flex flex-col">
+              <p className={`text-2xl font-bold ${
+                data?.type === "income" 
+                  ? "text-emerald-600" 
+                  : "text-red-600"
+              }`}>
+                <span className="font-bold">
+                  {data?.type === "income" ? "+" : "-"}
+                </span>{" "}
+                {formatCurrency(data?.amount, data?.currency)}
+              </p>
+              {data?.currency && (
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Currency: {data.currency}
+                  {data?.exchange_rate && data.exchange_rate !== 1 && (
+                    <span className="ml-2">
+                      (Rate: {data.exchange_rate})
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
             <button
               type='button'
               onClick={closeModal}

@@ -96,11 +96,16 @@ const Accounts = ({ data }) => {
                                 <span className="text-gray-600 dark:text-gray-500 text-sm 2xl:text-base">
                                     {maskAccountNumber(item.account_number)}
                                 </span>
+                                {item.currency && (
+                                    <span className="text-xs text-blue-600 dark:text-blue-400 ml-2 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
+                                        {item.currency}
+                                    </span>
+                                )}
                             </div>
                         </div>
                         <div className="text-right">
                             <p className="text-lg 2xl:text-xl text-black dark:text-gray-300 font-medium">
-                                {formatCurrency(item?.account_balance)}
+                                {formatCurrency(item?.account_balance, item?.currency)}
                             </p>
                             <span className="text-xs 2xl:text-sm text-gray-600 dark:text-gray-500">
                                 Account Balance

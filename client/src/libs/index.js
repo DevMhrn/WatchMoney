@@ -13,7 +13,7 @@ export const maskAccountNumber = (accountNumber) => {
   return `${firstFour}${maskedDigits}${lastFour}`;
 };
 
-export const formatCurrency = (value) => {
+export const formatCurrency = (value, currency) => {
   const user = JSON.parse(localStorage.getItem("user"));
 
   if (isNaN(value)) {
@@ -21,12 +21,18 @@ export const formatCurrency = (value) => {
   }
 
   const numberValue = typeof value === "string" ? parseFloat(value) : value;
+  const currencyCode = currency || user?.currency || "USD";
 
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: user?.currency || "USD",
+    currency: currencyCode,
     minimumFractionDigits: 2,
   }).format(numberValue);
+};
+
+export const formatCurrencyWithCode = (value, currency) => {
+  const formattedAmount = formatCurrency(value, currency);
+  return `${formattedAmount} ${currency || 'USD'}`;
 };
 
 export const getDateSevenDaysAgo = () => {

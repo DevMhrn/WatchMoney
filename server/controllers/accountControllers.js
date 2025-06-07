@@ -31,11 +31,12 @@ export const getAccounts = async (req, res) => {
 export const createAccount = async (req, res) => {
     try {
         const { userId } = req.body.user;
-        const { account_type_name, account_balance, account_number } = req.body;
+        const { account_type_name, account_balance, account_number, currency } = req.body;
         
         console.log("Account Type Name", account_type_name);
         console.log("Account Balance", account_balance);
         console.log("Account Number", account_number);
+        console.log("Currency", currency);
 
         if (!account_type_name || account_balance === undefined || !account_number) {
             return res.status(400).json({
@@ -52,6 +53,14 @@ export const createAccount = async (req, res) => {
                 message: "Invalid account balance"
             });
         }
+
+        // Get user's default currency if not provided
+        const user = await pool.query({
+            text: 'SELECT currency FROM tbluser WHERE id = $1',
+            values: [userId]
+        });
+
+        const accountCurrency = currency || user.rows[0]?.currency || 'USD';
 
         // Get account type ID
         const accountType = await pool.query({
@@ -100,10 +109,10 @@ export const createAccount = async (req, res) => {
         try {
             await client.query('BEGIN');
             
-            // Create account
+            // Create account with currency
             const newAccount = await client.query({
-                text: 'INSERT INTO tblaccount (user_id, account_type_id, account_number, account_balance) VALUES ($1, $2, $3, $4) RETURNING *',
-                values: [userId, accountTypeId, account_number, balance]
+                text: 'INSERT INTO tblaccount (user_id, account_type_id, account_number, account_balance, currency) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+                values: [userId, accountTypeId, account_number, balance, accountCurrency]
             });
 
             // Add initial deposit transaction if balance > 0
@@ -112,8 +121,8 @@ export const createAccount = async (req, res) => {
                 const description = `${account_type_name} (Initial Deposit)`;
                 
                 await client.query({
-                    text: 'INSERT INTO tbltransaction (user_id, account_id, transaction_reference, description, type, status, amount, source, category) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-                    values: [userId, newAccount.rows[0].id, transactionRef, description, 'income', 'Completed', balance, account_type_name, 'Other Income']
+                    text: 'INSERT INTO tbltransaction (user_id, account_id, transaction_reference, description, type, status, amount, source, category, currency, base_currency_amount) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+                    values: [userId, newAccount.rows[0].id, transactionRef, description, 'income', 'Completed', balance, account_type_name, 'Other Income', accountCurrency, balance]
                 });
             }
 
