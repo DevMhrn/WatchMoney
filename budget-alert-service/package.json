@@ -1,0 +1,49 @@
+{
+  "name": "budget-alert-service",
+  "version": "1.0.0",
+  "description": "Microservice for budget management and alerting in DdevFinance",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"No tests specified yet\" && exit 0",
+    "setup": "node scripts/setup.js"
+  },
+  "keywords": [
+    "budget",
+    "finance",
+    "alerts",
+    "microservice",
+    "nodejs",
+    "postgresql"
+  ],
+  "author": "DdevFinance Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "nodemailer": "^6.9.7",
+    "dayjs": "^1.11.10",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "express-rate-limit": "^7.1.5",
+    "compression": "^1.7.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/ddevfinance"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/ddevfinance/issues"
+  },
+  "homepage": "https://github.com/your-org/ddevfinance#readme"
+}
