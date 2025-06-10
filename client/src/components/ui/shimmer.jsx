@@ -174,4 +174,122 @@ export const SettingsFormShimmer = () => (
   </div>
 );
 
+// Budget card shimmer
+export const BudgetCardShimmer = () => (
+  <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-6">
+    <div className="flex justify-between items-start mb-4">
+      <div className="space-y-2 flex-1">
+        <Shimmer className="h-5 w-48 rounded" />
+        <Shimmer className="h-4 w-32 rounded" />
+      </div>
+      <div className="flex space-x-2">
+        <Shimmer className="w-6 h-6 rounded" />
+        <Shimmer className="w-6 h-6 rounded" />
+      </div>
+    </div>
+    
+    <div className="mb-4">
+      <div className="flex justify-between items-center mb-2">
+        <Shimmer className="h-4 w-16 rounded" />
+        <Shimmer className="h-5 w-12 rounded-full" />
+      </div>
+      <Shimmer className="w-full h-2 rounded-full" />
+    </div>
+
+    <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="space-y-1">
+        <Shimmer className="h-3 w-12 rounded" />
+        <Shimmer className="h-5 w-20 rounded" />
+      </div>
+      <div className="space-y-1">
+        <Shimmer className="h-3 w-16 rounded" />
+        <Shimmer className="h-5 w-20 rounded" />
+      </div>
+    </div>
+
+    <div className="flex justify-between items-center text-sm mb-3">
+      <Shimmer className="h-4 w-40 rounded" />
+      <Shimmer className="h-4 w-20 rounded" />
+    </div>
+
+    <Shimmer className="w-full h-10 rounded-lg" />
+  </div>
+);
+
+// Alert card shimmer
+export const AlertCardShimmer = () => (
+  <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 border-l-4 border-l-gray-300">
+    <div className="flex items-start justify-between">
+      <div className="flex items-start space-x-3 flex-1">
+        <Shimmer className="w-5 h-5 rounded mt-1" />
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center space-x-2">
+            <Shimmer className="h-4 w-32 rounded" />
+            <Shimmer className="h-5 w-12 rounded-full" />
+          </div>
+          <Shimmer className="h-4 w-full rounded" />
+          <Shimmer className="h-4 w-3/4 rounded" />
+          <div className="flex items-center space-x-4 mt-2">
+            <Shimmer className="h-3 w-24 rounded" />
+            <Shimmer className="h-3 w-20 rounded" />
+          </div>
+        </div>
+      </div>
+      <Shimmer className="w-20 h-6 rounded-md" />
+    </div>
+  </div>
+);
+
+// Budget form shimmer
+export const BudgetFormShimmer = () => (
+  <div className="p-6 space-y-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Shimmer className="h-4 w-24 rounded" />
+        <Shimmer className="h-10 w-full rounded-lg" />
+      </div>
+      <div className="space-y-2">
+        <Shimmer className="h-4 w-20 rounded" />
+        <Shimmer className="h-10 w-full rounded-lg" />
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <Shimmer className="h-4 w-28 rounded" />
+        <Shimmer className="h-10 w-full rounded-lg" />
+      </div>
+      <div className="space-y-2">
+        <Shimmer className="h-4 w-20 rounded" />
+        <Shimmer className="h-10 w-full rounded-lg" />
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="space-y-2">
+        <Shimmer className="h-4 w-24 rounded" />
+        <Shimmer className="h-10 w-full rounded-lg" />
+      </div>
+      <div className="space-y-2">
+        <Shimmer className="h-4 w-20 rounded" />
+        <Shimmer className="h-10 w-full rounded-lg" />
+      </div>
+      <div className="space-y-2">
+        <Shimmer className="h-4 w-18 rounded" />
+        <Shimmer className="h-10 w-full rounded-lg" />
+      </div>
+    </div>
+
+    <div className="space-y-2">
+      <Shimmer className="h-4 w-32 rounded" />
+      <Shimmer className="h-10 w-full rounded-lg" />
+    </div>
+
+    <div className="space-y-2">
+      <Shimmer className="h-4 w-20 rounded" />
+      <Shimmer className="h-24 w-full rounded-lg" />
+    </div>
+  </div>
+);
+
 export default Shimmer;

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useStore } from '../store';
 import { budgetAPI } from '../libs/apiCalls';
 import AlertCard from '../components/AlertCard';
+import { StatsCardShimmer, AlertCardShimmer } from '../components/ui/shimmer';
 
 const AlertsPage = () => {
   const { user } = useStore(state => state);
@@ -90,8 +91,32 @@ const AlertsPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+              <Bell className="mr-3" size={28} />
+              Alerts & Notifications
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Stay informed about your budget status and spending patterns
+            </p>
+          </div>
+        </div>
+
+        {/* Stats Cards Shimmer */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <StatsCardShimmer key={index} />
+          ))}
+        </div>
+
+        {/* Alert Cards Shimmer */}
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <AlertCardShimmer key={index} />
+          ))}
+        </div>
       </div>
     );
   }

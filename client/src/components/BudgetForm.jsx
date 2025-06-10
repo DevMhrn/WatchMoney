@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import CurrencyService from '../services/currencyService';
 import { budgetAPI } from '../libs/apiCalls';
 import { useStore } from '../store';
+import { BudgetFormShimmer } from './ui/shimmer';
 
 const BudgetForm = ({ isOpen, onClose, onSubmit, budget = null, isLoading = false }) => {
   const { user } = useStore((state) => state);
@@ -224,6 +225,28 @@ const BudgetForm = ({ isOpen, onClose, onSubmit, budget = null, isLoading = fals
   };
 
   if (!isOpen) return null;
+
+  // Show shimmer while loading categories on first open
+  if (loadingCategories && categories.length === 0) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {budget ? 'Edit Budget' : 'Create New Budget'}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              <X size={24} />
+            </button>
+          </div>
+          <BudgetFormShimmer />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import { budgetAPI } from '../libs/apiCalls';
 import BudgetCard from '../components/BudgetCard';
 import BudgetForm from '../components/BudgetForm';
+import { StatsCardShimmer, BudgetCardShimmer } from '../components/ui/shimmer';
 
 const BudgetPage = () => {
   const { user } = useStore(state => state);
@@ -126,17 +127,29 @@ const BudgetPage = () => {
   };
 
   const filteredBudgets = budgets.filter(budget => {
-    const matchesSearch = budget.budget_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         budget.category.toLowerCase().includes(searchTerm.toLowerCase());
+    // Ensure we have valid budget data and handle potential undefined values
+    const budgetName = (budget.budget_name || '').toLowerCase();
+    const categoryName = (budget.category || budget.category_name || '').toLowerCase();
+    const searchTermLower = searchTerm.toLowerCase().trim();
+    
+    const matchesSearch = searchTermLower === '' || 
+                         budgetName.includes(searchTermLower) ||
+                         categoryName.includes(searchTermLower);
     
     if (filterStatus === 'all') return matchesSearch;
-    if (filterStatus === 'exceeded') return matchesSearch && parseFloat(budget.percentage_used || 0) >= 100;
+    
+    const percentage = parseFloat(budget.percentage_used || 0);
+    const threshold = budget.alert_threshold_percentage || 80;
+    
+    if (filterStatus === 'exceeded') {
+      return matchesSearch && percentage >= 100;
+    }
     if (filterStatus === 'warning') {
-      const percentage = parseFloat(budget.percentage_used || 0);
-      const threshold = budget.alert_threshold_percentage || 80;
       return matchesSearch && percentage >= threshold && percentage < 100;
     }
-    if (filterStatus === 'healthy') return matchesSearch && parseFloat(budget.percentage_used || 0) < (budget.alert_threshold_percentage || 80);
+    if (filterStatus === 'healthy') {
+      return matchesSearch && percentage < threshold;
+    }
     
     return matchesSearch;
   });
@@ -150,8 +163,41 @@ const BudgetPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Budget Management</h1>
+            <p className="text-gray-600 dark:text-gray-400">Track and manage your spending budgets</p>
+          </div>
+          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center">
+            <Plus size={20} className="mr-2" />
+            Create Budget
+          </button>
+        </div>
+
+        {/* Overview Cards Shimmer */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <StatsCardShimmer key={index} />
+          ))}
+        </div>
+
+        {/* Search and Filter Shimmer */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex-1">
+            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+          </div>
+          <div className="w-32">
+            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Budget Cards Shimmer */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <BudgetCardShimmer key={index} />
+          ))}
+        </div>
       </div>
     );
   }
