@@ -91,22 +91,20 @@ const Transactions = () => {
   // Debounced search handler
   const debouncedSearch = useCallback(debounce((searchTerm) => {
     // Update URL based on search term
-    setSearchParams(prevSearchParams => {
-        const newSearchParams = new URLSearchParams(prevSearchParams);
-        if (searchTerm) {
-            newSearchParams.set('s', searchTerm);
-        } else {
-            newSearchParams.delete('s'); // Remove 's' if search term is empty
-        }
-        return newSearchParams;
-    }, { replace: true });
-  }, 300), [setSearchParams]); // Include setSearchParams in dependency array
+    const newSearchParams = new URLSearchParams(searchParams);
+    if (searchTerm) {
+      newSearchParams.set('s', searchTerm);
+    } else {
+      newSearchParams.delete('s');
+    }
+    setSearchParams(newSearchParams, { replace: true });
+  }, 300), [searchParams, setSearchParams]);
 
   // Handle search input change
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearch(value);
-    debouncedSearch(value); // Trigger debounced search
+    debouncedSearch(value);
   };
 
   useEffect(() => {
@@ -123,13 +121,11 @@ const Transactions = () => {
   // Clear search and reload when search term is empty
   useEffect(() => {
     if (!search) {
-      setSearchParams(prevSearchParams => {
-        const newSearchParams = new URLSearchParams(prevSearchParams);
-        newSearchParams.delete('s');
-        return newSearchParams;
-      });
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('s');
+      setSearchParams(newSearchParams, { replace: true });
     }
-  }, [search, setSearchParams]);
+  }, [search, searchParams, setSearchParams]);
 
   if (isLoading) {
     return (
@@ -164,15 +160,17 @@ const Transactions = () => {
         </div>
 
         {/* Controls Section */}
-        <div className='bg-white dark:bg-slate-800 rounded-xl p-6 shadow-lg border border-gray-100 dark:border-slate-700 mb-6'>
-          <div className='flex flex-col lg:flex-row lg:items-center justify-between gap-4'>
-            <div className="flex items-center gap-4">
-              <DateRange />
+        <div className='bg-white dark:bg-slate-800 rounded-xl p-4 md:p-6 shadow-lg border border-gray-100 dark:border-slate-700 mb-6'>
+          <div className='flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0 gap-4'>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-1">
+              <div className="w-full sm:w-auto">
+                <DateRange />
+              </div>
               
               {/* Enhanced Search */}
-              <div className='relative'>
-                <div className='flex items-center gap-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl px-4 py-3 min-w-[300px] focus-within:ring-2 focus-within:ring-violet-500 focus-within:border-transparent transition-all duration-200'>
-                  <IoSearchOutline className='text-xl text-gray-500 dark:text-gray-400' />
+              <div className='relative w-full sm:w-auto sm:min-w-[280px] lg:min-w-[320px]'>
+                <div className='flex items-center gap-2 bg-gray-50 dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl px-4 py-3 focus-within:ring-2 focus-within:ring-violet-500 focus-within:border-transparent transition-all duration-200'>
+                  <IoSearchOutline className='text-xl text-gray-500 dark:text-gray-400 flex-shrink-0' />
                   <input
                     ref={searchInputRef}
                     value={search}
@@ -183,8 +181,13 @@ const Transactions = () => {
                   />
                   {search && (
                     <button
-                      onClick={() => setSearch('')}
-                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      onClick={() => {
+                        setSearch('');
+                        const newSearchParams = new URLSearchParams(searchParams);
+                        newSearchParams.delete('s');
+                        setSearchParams(newSearchParams, { replace: true });
+                      }}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0 text-xl font-medium"
                     >
                       ×
                     </button>
@@ -193,11 +196,11 @@ const Transactions = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
               {/* Add Transaction Button */}
               <button
                 onClick={() => setIsOpen(true)}
-                className='py-3 px-6 rounded-xl bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 text-white flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 font-medium'
+                className='py-3 px-4 lg:px-6 rounded-xl bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 text-white flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all duration-200 font-medium text-sm lg:text-base'
               >
                 <BiPlus size={20} />
                 <span>Add Transaction</span>
@@ -211,10 +214,10 @@ const Transactions = () => {
                   exportToExcel(data, `Transactions ${exportStartDate}-${exportEndDate}`);
                   toast.success('Transactions exported successfully!');
                 }}
-                className='py-3 px-4 rounded-xl bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 flex items-center gap-2 transition-all duration-200 font-medium border border-gray-200 dark:border-slate-600'
+                className='py-3 px-4 rounded-xl bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-300 flex items-center justify-center gap-2 transition-all duration-200 font-medium border border-gray-200 dark:border-slate-600 text-sm lg:text-base'
               >
                 <BiDownload size={18} />
-                <span className="hidden sm:inline">Export</span>
+                <span>Export</span>
               </button>
             </div>
           </div>

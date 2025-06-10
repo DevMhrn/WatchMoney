@@ -10,22 +10,25 @@ const ICON_STYLES = [
     "bg-rose-300 text-rose-800 dark:bg-rose-900 dark:text-rose-300"
 ];
 
-const Stats = ({ balance, income, expense }) => {
+const Stats = ({ balance, income, expense, currency = 'USD' }) => {
     const data = [
         {
             label: "Total Balance",
             amount: balance,
-            icon: <BsCurrencyDollar size={26} />
+            icon: <BsCurrencyDollar size={26} />,
+            currency: currency
         },
         {
             label: "Total Income",
             amount: income,
-            icon: <BsCashCoin size={26} />
+            icon: <BsCashCoin size={26} />,
+            currency: currency
         },
         {
             label: "Total Expense",
             amount: expense,
-            icon: <SiCashapp size={26} />
+            icon: <SiCashapp size={26} />,
+            currency: currency
         }
     ];
 
@@ -40,11 +43,16 @@ const Stats = ({ balance, income, expense }) => {
                         {item.label}
                     </span>
                     <p className="text-2xl font-medium text-black 2xl:text-3xl dark:text-gray-400">
-                        {formatCurrency(item.amount)}
+                        {formatCurrency(item.amount, item.currency)}
                     </p>
-                    <span className="text-xs text-gray-600 md:text-sm 2xl:text-base dark:text-gray-500">
-                        {item.label}
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-600 md:text-sm 2xl:text-base dark:text-gray-500">
+                            {item.label}
+                        </span>
+                        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">
+                            {item.currency}
+                        </span>
+                    </div>
                 </div>
             </div>
         </Card>

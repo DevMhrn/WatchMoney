@@ -5,6 +5,7 @@ class CurrencyService {
         this.apiKey = process.env.EXCHANGE_RATE_API_KEY || null;
         this.baseUrl = 'https://api.exchangerate-api.com/v4/latest/';
         this.fallbackUrl = 'https://api.fixer.io/latest';
+        this.rateCache = new Map(); // Add in-memory cache
     }
 
     async getExchangeRate(fromCurrency, toCurrency) {
@@ -12,20 +13,37 @@ class CurrencyService {
             return 1.0;
         }
 
+        // Check in-memory cache first
+        const cacheKey = `${fromCurrency}-${toCurrency}`;
+        if (this.rateCache.has(cacheKey)) {
+            const cached = this.rateCache.get(cacheKey);
+            if (Date.now() - cached.timestamp < 300000) { // 5 minutes cache
+                return cached.rate;
+            }
+        }
+
         try {
             // First, try to get from database (cached)
             const cachedRate = await this.getCachedExchangeRate(fromCurrency, toCurrency);
             if (cachedRate && this.isRateRecent(cachedRate.updated_at)) {
-                return parseFloat(cachedRate.rate);
+                const rate = parseFloat(cachedRate.rate);
+                // Update in-memory cache
+                this.rateCache.set(cacheKey, { rate, timestamp: Date.now() });
+                return rate;
             }
 
             // If not cached or outdated, fetch from API
             const rate = await this.fetchExchangeRateFromAPI(fromCurrency, toCurrency);
-
             
+            // Cache the rate asynchronously to avoid blocking
+            setImmediate(() => {
+                this.cacheExchangeRate(fromCurrency, toCurrency, rate).catch(err => {
+                    console.error('Failed to cache exchange rate:', err);
+                });
+            });
             
-            // Cache the rate
-            await this.cacheExchangeRate(fromCurrency, toCurrency, rate);
+            // Update in-memory cache
+            this.rateCache.set(cacheKey, { rate, timestamp: Date.now() });
             
             return rate;
         } catch (error) {
@@ -122,6 +140,38 @@ class CurrencyService {
         }
 
         return totalBalance;
+    }
+
+    // Batch conversion for better performance
+    async batchConvertAmounts(conversions, targetCurrency) {
+        const uniqueCurrencies = [...new Set(conversions.map(c => c.fromCurrency))];
+        const rateMap = {};
+
+        // Fetch all rates in parallel
+        const ratePromises = uniqueCurrencies.map(async (currency) => {
+            if (currency !== targetCurrency) {
+                try {
+                    const rate = await this.getExchangeRate(currency, targetCurrency);
+                    rateMap[currency] = rate;
+                } catch (error) {
+                    console.warn(`Failed to get rate for ${currency}, using 1:`, error);
+                    rateMap[currency] = 1;
+                }
+            } else {
+                rateMap[currency] = 1;
+            }
+        });
+
+        await Promise.all(ratePromises);
+
+        // Apply conversions
+        return conversions.map(({ amount, fromCurrency }) => ({
+            originalAmount: amount,
+            convertedAmount: amount * (rateMap[fromCurrency] || 1),
+            rate: rateMap[fromCurrency] || 1,
+            fromCurrency,
+            toCurrency: targetCurrency
+        }));
     }
 }
 

@@ -74,82 +74,43 @@ export const getDashboardInformation = async (req, res) => {
         const { userId } = req.body.user;
         const { currency } = req.query;
         
-        // Get user's preferred currency
+        const startTime = Date.now();
+        
+        // Get user's preferred currency from database in a single query
         const user = await pool.query({
-            text: 'SELECT currency FROM tbluser WHERE id = $1',
+            text: 'SELECT currency, firstname, lastname FROM tbluser WHERE id = $1',
             values: [userId]
         });
         
-        const targetCurrency = currency || user.rows[0]?.currency || 'USD';
+        const userCurrency = currency || user.rows[0]?.currency || 'USD';
         
-        // Get consolidated totals in target currency
-        const consolidatedBalance = await currencyService.getConsolidatedBalance(userId, targetCurrency);
-        
-        // Get transaction totals with currency conversion
-        const transactions = await pool.query({
-            text: `SELECT type, amount, currency FROM tbltransaction WHERE user_id = $1`,
-            values: [userId]
-        });
+        // Get all data in parallel for better performance
+        const [accountsResult, transactionsResult, monthlyTransactionsResult] = await Promise.all([
+            // Get accounts for consolidated balance
+            pool.query({
+                text: 'SELECT account_balance, currency FROM tblaccount WHERE user_id = $1 AND is_active = true',
+                values: [userId]
+            }),
+            // Get all transactions for totals
+            pool.query({
+                text: `SELECT type, amount, currency FROM tbltransaction WHERE user_id = $1`,
+                values: [userId]
+            }),
+            // Get monthly data for current year
+            pool.query({
+                text: `SELECT 
+                        EXTRACT(MONTH FROM created_at) AS month,
+                        type,
+                        amount,
+                        currency
+                       FROM tbltransaction 
+                       WHERE user_id = $1 
+                       AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE)`,
+                values: [userId]
+            })
+        ]);
 
-        let totalIncome = 0;
-        let totalExpense = 0;
-
-        for (const transaction of transactions.rows) {
-            const convertedAmount = await currencyService.convertAmount(
-                parseFloat(transaction.amount),
-                transaction.currency,
-                targetCurrency
-            );
-
-            if (transaction.type === 'income') {
-                totalIncome += convertedAmount;
-            } else if (transaction.type === 'expense') {
-                totalExpense += convertedAmount;
-            }
-        }
-
-        // Get monthly data for current year with currency conversion
-        const year = new Date().getFullYear();
-        const startDate = new Date(year, 0, 1);
-        const endDate = new Date(year, 11, 31, 23, 59, 59);
-
-        const result = await pool.query({
-            text: `SELECT 
-                    EXTRACT(MONTH FROM created_at) AS month,
-                    type,
-                    amount,
-                    currency
-                   FROM tbltransaction 
-                   WHERE user_id = $1 
-                   AND created_at BETWEEN $2 AND $3`,
-            values: [userId, startDate, endDate]
-        });
-
-        // Format chart data with currency conversion
-        const monthlyData = new Array(12).fill().map(() => ({ income: 0, expense: 0 }));
-        
-        for (const transaction of result.rows) {
-            const month = parseInt(transaction.month) - 1;
-            const convertedAmount = await currencyService.convertAmount(
-                parseFloat(transaction.amount),
-                transaction.currency,
-                targetCurrency
-            );
-
-            if (transaction.type === 'income') {
-                monthlyData[month].income += convertedAmount;
-            } else if (transaction.type === 'expense') {
-                monthlyData[month].expense += convertedAmount;
-            }
-        }
-
-        const data = monthlyData.map((monthData, index) => ({
-            label: getMonthName(index),
-            income: monthData.income,
-            expense: monthData.expense,
-        }));
-
-        // Get recent data
+        // Get recent data in parallel
         const [recentTransactions, recentAccounts] = await Promise.all([
             pool.query({
                 text: `SELECT * FROM tbltransaction 
@@ -159,11 +120,74 @@ export const getDashboardInformation = async (req, res) => {
             }),
             pool.query({
                 text: `SELECT * FROM tblaccount 
-                       WHERE user_id = $1 
+                       WHERE user_id = $1 AND is_active = true
                        ORDER BY created_at DESC LIMIT 4`,
                 values: [userId]
             })
         ]);
+
+        // Batch currency conversion for better performance
+        const accountConversions = accountsResult.rows.map(acc => ({
+            amount: parseFloat(acc.account_balance),
+            fromCurrency: acc.currency
+        }));
+
+        const transactionConversions = transactionsResult.rows.map(txn => ({
+            amount: parseFloat(txn.amount),
+            fromCurrency: txn.currency,
+            type: txn.type
+        }));
+
+        const monthlyConversions = monthlyTransactionsResult.rows.map(txn => ({
+            amount: parseFloat(txn.amount),
+            fromCurrency: txn.currency,
+            type: txn.type,
+            month: parseInt(txn.month) - 1
+        }));
+
+        // Process conversions in batches
+        const [accountResults, transactionResults, monthlyResults] = await Promise.all([
+            currencyService.batchConvertAmounts(accountConversions, userCurrency),
+            currencyService.batchConvertAmounts(transactionConversions, userCurrency),
+            currencyService.batchConvertAmounts(monthlyConversions, userCurrency)
+        ]);
+
+        // Calculate consolidated balance
+        const consolidatedBalance = accountResults.reduce((sum, result) => sum + result.convertedAmount, 0);
+
+        // Calculate transaction totals
+        let totalIncome = 0;
+        let totalExpense = 0;
+        
+        transactionResults.forEach((result, index) => {
+            const type = transactionConversions[index].type;
+            if (type === 'income') {
+                totalIncome += result.convertedAmount;
+            } else if (type === 'expense') {
+                totalExpense += result.convertedAmount;
+            }
+        });
+
+        // Format chart data
+        const monthlyData = new Array(12).fill().map(() => ({ income: 0, expense: 0 }));
+        
+        monthlyResults.forEach((result, index) => {
+            const { type, month } = monthlyConversions[index];
+            if (type === 'income') {
+                monthlyData[month].income += result.convertedAmount;
+            } else if (type === 'expense') {
+                monthlyData[month].expense += result.convertedAmount;
+            }
+        });
+
+        const chartData = monthlyData.map((monthData, index) => ({
+            label: getMonthName(index),
+            income: monthData.income,
+            expense: monthData.expense,
+        }));
+
+        const endTime = Date.now();
+        console.log(`Dashboard data fetched in ${endTime - startTime}ms`);
 
         return res.status(200).json({
             status: true,
@@ -171,10 +195,22 @@ export const getDashboardInformation = async (req, res) => {
                 availableBalance: consolidatedBalance,
                 totalIncome,
                 totalExpense,
-                currency: targetCurrency,
-                chartData: data,
+                currency: userCurrency,
+                chartData: chartData,
                 lastTransactions: recentTransactions.rows,
-                lastAccounts: recentAccounts.rows
+                lastAccounts: recentAccounts.rows,
+                user: {
+                    name: `${user.rows[0]?.firstname} ${user.rows[0]?.lastname}`,
+                    currency: userCurrency
+                }
+            },
+            meta: {
+                processingTime: endTime - startTime,
+                dataPoints: {
+                    accounts: accountsResult.rows.length,
+                    transactions: transactionsResult.rows.length,
+                    monthlyTransactions: monthlyTransactionsResult.rows.length
+                }
             }
         });
     } catch (error) {

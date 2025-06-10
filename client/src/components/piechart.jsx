@@ -12,7 +12,7 @@ import { formatCurrency } from "../libs";
 
 const COLORS = ["#4F46E5", "#EF4444"]; // Blue for income, Red for expense
 
-const DoughnutChart = ({ dt }) => {
+const DoughnutChart = ({ dt, currency = "USD" }) => {
     const data = [
         { 
             name: "Income", 
@@ -29,12 +29,12 @@ const DoughnutChart = ({ dt }) => {
     const CustomTooltip = ({ active, payload }) => {
         if (active && payload && payload.length) {
             return (
-                <div className="bg-white p-4 shadow-lg rounded-lg border dark:bg-gray-800 dark:border-gray-700">
+                <div className="bg-white p-4 shadow-lg rounded-lg border dark:bg-gray-800 dark:border-gray-700 transition-all duration-300">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
                         {payload[0].name}
                     </p>
                     <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                        {formatCurrency(payload[0].value)}
+                        {formatCurrency(payload[0].value, currency)}
                     </p>
                 </div>
             );
@@ -43,8 +43,13 @@ const DoughnutChart = ({ dt }) => {
     };
 
     return (
-        <div className="w-full md:w-1/3 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm">
-            <Title title="Income vs Expense" />
+        <div className="w-full md:w-1/3 p-6 rounded-lg bg-white dark:bg-gray-800 shadow-sm transition-all duration-500">
+            <div className="flex items-center justify-between mb-4">
+                <Title title="Income vs Expense" />
+                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                    {currency}
+                </span>
+            </div>
             <ResponsiveContainer width="100%" height={400}>
                 <PieChart>
                     <Tooltip content={<CustomTooltip />} />
@@ -63,6 +68,10 @@ const DoughnutChart = ({ dt }) => {
                         outerRadius={120}
                         paddingAngle={5}
                         dataKey="value"
+                        animationBegin={100}
+                        animationDuration={750}
+                        animationEasing="ease-in-out"
+                        isAnimationActive={true}
                     >
                         {data.map((entry, index) => (
                             <Cell
