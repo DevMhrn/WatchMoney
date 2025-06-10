@@ -89,10 +89,10 @@ function Register() {
             
             if (response.data?.status) {
                 toast.success('Registration successful!');
-                setCredentials({
-                    user: response.data.user,
-                    token: response.data.token
-                });
+                const userInfo = { ...response.data.user, token: response.data.token };
+                localStorage.setItem("user", JSON.stringify(userInfo));
+                
+                setCredentials(userInfo);
                 
                 // Success animation before navigation
                 animate('.register-card', {
@@ -107,7 +107,19 @@ function Register() {
             }
         } catch (error) {
             console.error(error);
-            toast.error(error.response?.data?.message || 'Registration failed');
+            const errorMessage = error.response?.data?.message || 'Registration failed';
+            
+            // Check if error is related to user already existing
+            if (errorMessage.toLowerCase().includes('user with this email already exists') || 
+                errorMessage.toLowerCase().includes('already exists') ||
+                errorMessage.toLowerCase().includes('email already') ||
+                errorMessage.toLowerCase().includes('already registered')) {
+                toast.error("User already exists. Please login instead.");
+            } else if (errorMessage.toLowerCase().includes('email')) {
+                toast.error("Invalid email address or email already in use.");
+            } else {
+                toast.error(errorMessage);
+            }
             
             // Error shake animation
             animate('.register-card', {
@@ -246,6 +258,16 @@ function Register() {
                                             )}
                                         </AnimatedButton>
                                     </div>
+
+                                     <div className="text-center mt-4 opacity-0 animate-element">
+                                            <p className="text-muted-foreground">Already have an account?</p>
+                                            <Link 
+                                                to="/login" 
+                                                className="font-semibold text-primary hover:text-accent transition-colors duration-200 hover:underline hover:text-blue-500"
+                                            >
+                                                Sign In
+                                            </Link>
+                                    </div>
                                 </form>
                             </CardContent>
                             
@@ -258,6 +280,7 @@ function Register() {
                                     Sign In
                                 </Link>
                             </CardFooter>
+                            
                         </div>
                     </Card>
                 </FloatingCard>

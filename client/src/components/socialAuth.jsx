@@ -26,6 +26,7 @@ const SocialAuth = ({ isLoading, setLoading }) => {
                 uid: result.user.uid,
             };
 
+            // First try to sign in
             const { data } = await api.post("/auth/signin", userData);
 
             if (data?.status) {
@@ -39,7 +40,36 @@ const SocialAuth = ({ isLoading, setLoading }) => {
             }
         } catch (error) {
             console.error("Error signing in with Google:", error);
-            toast.error(error?.response?.data?.message || 'Failed to sign in with Google');
+            const errorMessage = error?.response?.data?.message || 'Failed to sign in with Google';
+            
+            // If user doesn't exist, try to register them
+            if (errorMessage.toLowerCase().includes('user with this email does not exist') || 
+                errorMessage.toLowerCase().includes('does not exist')) {
+                try {
+                    // Auto-register the user with Google data
+                    const userData = {
+                        firstName: result.user.displayName?.split(' ')[0],
+                        email: result.user.email,
+                        password: result.user.uid, // Use UID as password for Google users
+                        provider: 'google',
+                        uid: result.user.uid,
+                    };
+                    
+                    const registerResponse = await api.post("/auth/signup", userData);
+                    if (registerResponse.data?.status) {
+                        toast.success('Account created and signed in successfully!');
+                        const userInfo = { ...registerResponse.data.user, token: registerResponse.data.token };
+                        localStorage.setItem("user", JSON.stringify(userInfo));
+                        setCredentials(userInfo);
+                        navigate("/dashboard");
+                    }
+                } catch (registerError) {
+                    console.error("Error registering with Google:", registerError);
+                    toast.error("Failed to create account with Google");
+                }
+            } else {
+                toast.error(errorMessage);
+            }
         } finally {
             setLoading(false);
         }

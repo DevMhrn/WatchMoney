@@ -48,9 +48,9 @@ function Login() {
             });
         }
 
-        // Animate form elements
+        // Animate form elements and other content
         if (formRef.current) {
-            const elements = formRef.current.querySelectorAll('.animate-element');
+            const elements = formRef.current.parentElement.querySelectorAll('.animate-element');
             elements.forEach((element, index) => {
                 animate(element, {
                     opacity: [0, 1],
@@ -84,10 +84,7 @@ function Login() {
                 const userInfo = { ...response.data.user, token: response.data.token };
                 localStorage.setItem("user", JSON.stringify(userInfo));
                 
-                setCredentials({
-                    user: response.data.user,
-                    token: response.data.token
-                });
+                setCredentials(userInfo);
 
                 // Success animation before navigation
                 animate('.login-card', {
@@ -100,7 +97,18 @@ function Login() {
             }
         } catch (error) {
             console.error(error);
-            toast.error(error.response?.data?.message || 'Login failed');
+            const errorMessage = error.response?.data?.message || 'Login failed';
+            
+            // Check if error is related to user not existing
+            if (errorMessage.toLowerCase().includes('user with this email does not exist') || 
+                errorMessage.toLowerCase().includes('does not exist') ||
+                errorMessage.toLowerCase().includes('user not found')) {
+                toast.error("The user doesn't exist. Please register first.");
+            } else if (errorMessage.toLowerCase().includes('invalid password')) {
+                toast.error("Invalid password. Please try again.");
+            } else {
+                toast.error(errorMessage);
+            }
             
             // Error shake animation
             animate('.login-card', {
@@ -211,6 +219,19 @@ function Login() {
                                             )}
                                         </AnimatedButton>
                                     </div>
+                                    
+                                    {/* Additional help text moved inside form */}
+                                    <div className="text-center mt-4 opacity-0 animate-element">
+                                        <p className="text-muted-foreground">Don't have an account?</p>
+                                            <Link 
+                                                to="/register" 
+                                                className="font-semibold text-primary hover:text-accent transition-colors duration-200 hover:underline hover:text-blue-500"
+                                            >
+                                                Create Account
+                                            </Link>
+                                    </div>
+
+
                                 </form>
                             </CardContent>
                             
