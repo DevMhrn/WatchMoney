@@ -264,22 +264,38 @@ class AlertController {
     }
 
     /**
-     * Test email configuration
+     * Test email configuration (currently disabled)
      * POST /alerts/test-email
      */
     async testEmail(req, res) {
         try {
+            // Email service temporarily disabled
+            console.log('📧 Test email skipped - email service is disabled');
+            
+            res.json(
+                successResponse(
+                    { 
+                        success: true, 
+                        message: 'Email service is currently disabled',
+                        status: 'disabled'
+                    }, 
+                    'Email service disabled'
+                )
+            );
+
+            /* Original email test code (commented out):
             const { to } = req.body;
-            const testEmail = to || 'test@example.com';
+            const testEmail = to || 'devlearncoding37@gmail.com';
 
             const result = await emailConfig.sendTestEmail(testEmail);
 
             res.json(
                 successResponse(result, 'Test email sent successfully')
             );
+            */
 
         } catch (error) {
-            console.error('Error sending test email:', error);
+            console.error('Error in test email endpoint:', error);
             res.status(500).json(
                 errorResponse(error.message)
             );

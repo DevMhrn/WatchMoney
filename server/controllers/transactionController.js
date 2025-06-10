@@ -187,16 +187,25 @@ export const getDashboardInformation = async (req, res) => {
 };
 
 export const addTransaction = async (req, res) => {
-    // this addtransaction function is used to add a transaction to the database
     try {
         const { userId } = req.body.user;
         const { account_id } = req.params;
-        const { description, source, amount } = req.body;
+        const { description, source, amount, category, category_id } = req.body;
 
-        if (!description || !source || !amount) {
+        console.log('Transaction request received:', {
+            userId,
+            account_id,
+            description,
+            source,
+            amount,
+            category,
+            category_id
+        });
+
+        if (!description || !amount) {
             return res.status(400).json({
                 status: false,
-                message: "Please provide all required fields"
+                message: "Please provide all required fields (description and amount are required)"
             });
         }
 
@@ -209,7 +218,7 @@ export const addTransaction = async (req, res) => {
         }
 
         const accountResult = await pool.query({
-            text: 'SELECT * FROM tblaccount WHERE id = $1 AND user_id = $2',
+            text: 'SELECT a.*, at.type_name FROM tblaccount a JOIN tblaccounttype at ON a.account_type_id = at.id WHERE a.id = $1 AND a.user_id = $2',
             values: [account_id, userId]
         });
 
@@ -221,6 +230,8 @@ export const addTransaction = async (req, res) => {
         }
 
         const account = accountResult.rows[0];
+        const finalSource = source || account.type_name || 'Unknown Account';
+
         if (account.account_balance < numericAmount) {
             return res.status(400).json({
                 status: false,
@@ -228,36 +239,153 @@ export const addTransaction = async (req, res) => {
             });
         }
 
-        // Begin transaction
-        await pool.query('BEGIN');
+        // Begin database transaction
+        const client = await pool.connect();
         try {
-            await pool.query({
+            await client.query('BEGIN');
+            
+            // Update account balance
+            const updateAccountResult = await client.query({
                 text: `UPDATE tblaccount 
                        SET account_balance = account_balance - $1,
                            updated_at = CURRENT_TIMESTAMP 
-                       WHERE id = $2`,
+                       WHERE id = $2
+                       RETURNING account_balance`,
                 values: [numericAmount, account_id]
             });
 
-            await pool.query({
+            console.log('Account updated, new balance:', updateAccountResult.rows[0]?.account_balance);
+
+            // Insert transaction record with category name and category ID
+            const transactionResult = await client.query({
                 text: `INSERT INTO tbltransaction 
-                       (user_id, description, type, status, amount, source)
-                       VALUES ($1, $2, $3, $4, $5, $6)`,
-                values: [userId, description, 'expense', 'Completed', numericAmount, source]
+                       (user_id, account_id, description, type, status, amount, source, 
+                       category, category_id, currency)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                       RETURNING *`,
+                values: [
+                    userId, 
+                    account_id, 
+                    description, 
+                    'expense', 
+                    'Completed', 
+                    numericAmount, 
+                    finalSource, 
+                    category || null, // Store category name in transaction
+                    category_id || null, // Store category ID in transaction
+                    account.currency
+                ]
             });
 
-            await pool.query('COMMIT');
+            console.log('Transaction inserted:', transactionResult.rows[0]?.id);
+
+            await client.query('COMMIT');
+            
+            const newTransaction = transactionResult.rows[0];
+
+            // Only call budget service for EXPENSE transactions with a category_id
+            if (category_id && newTransaction.type === 'expense') {
+                // Call budget service asynchronously (don't block the response)
+                setImmediate(async () => {
+                    try {
+                        console.log(`💰 Processing expense transaction for budget check: ${category} (ID: ${category_id}) - ${numericAmount} ${account.currency}`);
+                        
+                        // Get budget currency to convert transaction amount
+                        const budgetQuery = await pool.query({
+                            text: 'SELECT currency FROM tblbudget WHERE category_id = $1 AND user_id = $2 AND is_active = true LIMIT 1',
+                            values: [category_id, userId]
+                        });
+                        
+                        let convertedAmount = numericAmount;
+                        let targetCurrency = account.currency;
+                        
+                        // Convert currency if budget exists and uses different currency
+                        if (budgetQuery.rows.length > 0) {
+                            const budgetCurrency = budgetQuery.rows[0].currency;
+                            targetCurrency = budgetCurrency;
+                            
+                            if (account.currency !== budgetCurrency) {
+                                console.log(`🔄 Converting transaction amount: ${numericAmount} ${account.currency} to ${budgetCurrency}`);
+                                convertedAmount = await currencyService.convertAmount(
+                                    numericAmount,
+                                    account.currency,
+                                    budgetCurrency
+                                );
+                                console.log(`✅ Converted amount: ${convertedAmount} ${budgetCurrency}`);
+                            } else {
+                                console.log(`ℹ️ No conversion needed: both transaction and budget use ${budgetCurrency}`);
+                            }
+                        }
+                        
+                        const budgetServiceUrl = process.env.BUDGET_SERVICE_URL ;
+                        const requestBody = {
+                            user_id: userId,
+                            category_id: category_id,
+                            amount: convertedAmount, // Send converted amount in budget currency
+                            transaction_type: 'expense',
+                            transaction_date: newTransaction.created_at,
+                            description: description
+                        };
+
+                        console.log('📤 Sending to budget service with currency conversion:', {
+                            original: `${numericAmount} ${account.currency}`,
+                            converted: `${convertedAmount} ${targetCurrency}`,
+                            category_id
+                        });
+
+                        const budgetCheckResponse = await fetch(`${budgetServiceUrl}/api/transactions`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': req.headers.authorization
+                            },
+                            body: JSON.stringify(requestBody)
+                        });
+
+                        const responseText = await budgetCheckResponse.text();
+                        
+                        if (budgetCheckResponse.ok) {
+                            const budgetResult = JSON.parse(responseText);
+                            console.log('✅ Budget check completed:', budgetResult.message);
+                            
+                            if (budgetResult.data?.budgetChecks?.length > 0) {
+                                const alertsSent = budgetResult.data.budgetChecks.filter(bc => bc.alertSent).length;
+                                if (alertsSent > 0) {
+                                    console.log(`📧 ${alertsSent} budget alert(s) sent for transaction`);
+                                }
+                            }
+                        } else {
+                            console.error('⚠️ Budget service check failed:', {
+                                status: budgetCheckResponse.status,
+                                statusText: budgetCheckResponse.statusText,
+                                response: responseText,
+                                requestBody
+                            });
+                        }
+                    } catch (budgetError) {
+                        console.error('❌ Budget service error (transaction was successful):', budgetError.message);
+                    }
+                });
+            } else {
+                console.log(`ℹ️ Skipping budget check - Transaction type: ${newTransaction.type}, Category ID: ${category_id || 'none'}`);
+            }
 
             return res.status(201).json({
                 status: true,
-                message: "Transaction completed successfully"
+                message: "Transaction completed successfully",
+                transaction: newTransaction
             });
-        } catch (error) {
-            await pool.query('ROLLBACK');
-            throw error;
+
+        } catch (dbError) {
+            await client.query('ROLLBACK');
+            console.error('Database transaction error:', dbError);
+            throw dbError;
+        } finally {
+            client.release();
         }
+
     } catch (error) {
-        console.log(error);
+        console.error('Transaction controller error:', error);
         return res.status(400).json({
             status: false,
             error: error.message

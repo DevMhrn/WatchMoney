@@ -17,21 +17,31 @@ class TransactionController {
      */
     async processTransaction(req, res) {
         try {
+            console.log('🔍 Received transaction request:', {
+                body: req.body,
+                headers: {
+                    'content-type': req.headers['content-type'],
+                    authorization: req.headers.authorization ? 'Present' : 'Missing'
+                }
+            });
+
             const validation = validateTransactionData(req.body);
             
             if (!validation.isValid) {
+                console.error('❌ Transaction validation failed:', validation.errors);
                 return res.status(400).json(
                     validationErrorResponse(validation.errors)
                 );
             }
 
+            console.log('✅ Transaction validation passed, processing...');
             const result = await TransactionService.processTransaction(validation.sanitizedData);
 
             // Log the transaction processing for monitoring
             console.log(`📊 Transaction processed for user ${validation.sanitizedData.user_id}:`, {
                 amount: validation.sanitizedData.amount,
-                budgetsChecked: result.budgetChecks.length,
-                alertsSent: result.budgetChecks.filter(bc => bc.alertSent).length
+                budgetsChecked: result.budgetChecks?.length || 0,
+                alertsSent: result.budgetChecks?.filter(bc => bc.alertSent).length || 0
             });
 
             res.json(

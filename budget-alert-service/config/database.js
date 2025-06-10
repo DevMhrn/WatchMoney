@@ -74,7 +74,29 @@ export const initializeDatabase = async () => {
             console.log('⚠️  Budget Service will start but some features may not work until the schema is complete.');
             return true; // Allow service to start anyway
         }
-        
+
+        // Check if budget categories exist
+        const budgetCategoriesQuery = `
+            SELECT COUNT(*) as count FROM tblcategory WHERE type = 'budget'
+        `;
+        const budgetCategoriesResult = await pool.query(budgetCategoriesQuery);
+        const budgetCategoriesCount = parseInt(budgetCategoriesResult.rows[0].count);
+
+        if (budgetCategoriesCount === 0) {
+            console.log('🔧 Adding budget categories...');
+            const insertBudgetCategories = `
+                INSERT INTO tblcategory (name, description, color_code, icon_name, type, is_system) VALUES
+                ('General Budget', 'General purpose budget category', '#9C27B0', 'budget', 'budget', true),
+                ('Emergency Fund', 'Emergency fund budget', '#F44336', 'emergency', 'budget', true),
+                ('Vacation Fund', 'Vacation savings budget', '#FF9800', 'vacation', 'budget', true),
+                ('Home Improvement', 'Home improvement projects', '#795548', 'home', 'budget', true),
+                ('Car Fund', 'Car purchase or maintenance fund', '#607D8B', 'car', 'budget', true)
+                ON CONFLICT (user_id, name, type) DO NOTHING;
+            `;
+            await pool.query(insertBudgetCategories);
+            console.log('✅ Budget categories added successfully');
+        }
+
         // Read the migration SQL file
         const migrationPath = path.join(__dirname, '..', 'migrations', 'budget_service_setup.sql');
         

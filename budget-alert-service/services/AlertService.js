@@ -64,16 +64,16 @@ class AlertService {
             // Create alert record
             const alert = await this.createAlert(budget, alertType);
 
-            // Send email if enabled
-            if (budget.email_alerts && budget.email) {
-                await this.sendEmailAlert(budget, alert);
-                await this.markAlertEmailSent(alert.id);
-            }
+            // TODO: Send email if enabled (currently disabled)
+            // if (budget.email_alerts && budget.email) {
+            //     await this.sendEmailAlert(budget, alert);
+            //     await this.markAlertEmailSent(alert.id);
+            // }
 
             return { 
                 success: true, 
                 alert, 
-                message: `${alertType} alert sent successfully` 
+                message: `${alertType} alert created successfully (email disabled)` 
             };
 
         } finally {
@@ -94,22 +94,92 @@ class AlertService {
     }
 
     /**
-     * Check if a similar alert was sent recently (within last 24 hours)
+     * IMPROVED: Check if a similar alert was sent recently with OR logic
+     * Send alert if: (24+ hours passed) OR (significant spending increase >= 5%)
      */
     async checkRecentAlert(budgetId, userId, alertType) {
         const client = await pool.connect();
         try {
-            const query = `
-                SELECT id FROM tblbudgetalert 
+            // Get the most recent alert of this type (regardless of time)
+            const recentAlertQuery = `
+                SELECT id, current_spent, created_at 
+                FROM tblbudgetalert 
                 WHERE budget_id = $1 
                     AND user_id = $2 
                     AND alert_type = $3 
-                    AND created_at > (CURRENT_TIMESTAMP - INTERVAL '24 hours')
+                ORDER BY created_at DESC
                 LIMIT 1
             `;
 
-            const result = await client.query(query, [budgetId, userId, alertType]);
-            return result.rows.length > 0;
+            const recentAlertResult = await client.query(recentAlertQuery, [budgetId, userId, alertType]);
+            
+            if (recentAlertResult.rows.length === 0) {
+                console.log('✅ No previous alert found, can send new alert');
+                return false; // No recent alert, can send new one
+            }
+
+            const lastAlert = recentAlertResult.rows[0];
+            const lastAlertTime = new Date(lastAlert.created_at);
+            const now = new Date();
+            const hoursSinceLastAlert = (now - lastAlertTime) / (1000 * 60 * 60); // Convert to hours
+
+            console.log(`🕐 Last ${alertType} alert was ${hoursSinceLastAlert.toFixed(1)} hours ago`);
+
+            // CONDITION 1: Check if 24+ hours have passed
+            if (hoursSinceLastAlert >= 24) {
+                console.log(`⏰ More than 24 hours passed (${hoursSinceLastAlert.toFixed(1)}h), can send new ${alertType} alert`);
+                return false; // Allow new alert
+            }
+
+            // CONDITION 2: Check spending increase (only if less than 24 hours)
+            const currentBudgetQuery = `
+                SELECT 
+                    b.budget_amount,
+                    bs.total_spent
+                FROM tblbudget b
+                LEFT JOIN tblbudgetspending bs ON b.id = bs.budget_id 
+                    AND bs.period_start <= CURRENT_DATE 
+                    AND bs.period_end >= CURRENT_DATE
+                WHERE b.id = $1
+            `;
+            
+            const currentBudgetResult = await client.query(currentBudgetQuery, [budgetId]);
+            
+            if (currentBudgetResult.rows.length === 0) {
+                console.log('⚠️ Budget not found, skipping alert');
+                return true; // Budget not found, skip alert
+            }
+
+            const currentSpent = parseFloat(currentBudgetResult.rows[0].total_spent || 0);
+            const lastAlertSpent = parseFloat(lastAlert.current_spent || 0);
+            const budgetAmount = parseFloat(currentBudgetResult.rows[0].budget_amount);
+
+            // Calculate spending increase since last alert
+            const spendingIncrease = currentSpent - lastAlertSpent;
+            const percentageIncrease = budgetAmount > 0 ? (spendingIncrease / budgetAmount) * 100 : 0;
+
+            console.log(`🔍 Recent alert analysis for ${alertType}:`, {
+                hoursSinceLastAlert: `${hoursSinceLastAlert.toFixed(1)}h`,
+                currentSpent: `${currentSpent}`,
+                lastAlertSpent: `${lastAlertSpent}`,
+                spendingIncrease: `${spendingIncrease}`,
+                percentageIncrease: `${percentageIncrease.toFixed(1)}%`,
+                budgetAmount: `${budgetAmount}`,
+                alertCreatedAt: lastAlert.created_at
+            });
+
+            // CONDITION 2: Check if spending increased significantly (5% or more of budget)
+            const SPENDING_INCREASE_THRESHOLD = 5; // 5% of budget amount
+            
+            if (percentageIncrease >= SPENDING_INCREASE_THRESHOLD) {
+                console.log(`⚠️ Significant spending increase detected (${percentageIncrease.toFixed(1)}% >= ${SPENDING_INCREASE_THRESHOLD}%), sending new ${alertType} alert`);
+                return false; // Allow new alert
+            }
+
+            // Both conditions failed: less than 24 hours AND less than 5% increase
+            console.log(`✅ Skipping ${alertType} alert: Only ${hoursSinceLastAlert.toFixed(1)}h passed AND only ${percentageIncrease.toFixed(1)}% increase`);
+            return true; // Skip alert
+            
         } finally {
             client.release();
         }
@@ -160,23 +230,32 @@ class AlertService {
 
         switch (alertType) {
             case 'warning':
-                return `Budget Alert: You've spent ${spentAmount} (${percentage}%) of your ${budgetAmount} ${categoryName} budget for this ${budget.period_type}.`;
+                return `Budget Alert: You've spent ${spentAmount} (${percentage}%) of your ${budgetAmount} ${categoryName} budget for this ${budget.period_type}. Budget currency: ${budget.currency}.`;
             
             case 'exceeded':
-                return `Budget Exceeded: You've spent ${spentAmount} (${percentage}%) of your ${budgetAmount} ${categoryName} budget for this ${budget.period_type}. Consider reviewing your spending.`;
+                return `Budget Exceeded: You've spent ${spentAmount} (${percentage}%) of your ${budgetAmount} ${categoryName} budget for this ${budget.period_type}. Consider reviewing your spending. Budget currency: ${budget.currency}.`;
             
             case 'critical':
-                return `Critical Budget Alert: You've significantly exceeded your ${budgetAmount} ${categoryName} budget with ${spentAmount} spent (${percentage}%).`;
+                return `Critical Budget Alert: You've significantly exceeded your ${budgetAmount} ${categoryName} budget with ${spentAmount} spent (${percentage}%). Budget currency: ${budget.currency}.`;
             
             default:
-                return `Budget notification for ${categoryName}: ${spentAmount} spent of ${budgetAmount} budget.`;
+                return `Budget notification for ${categoryName}: ${spentAmount} spent of ${budgetAmount} budget (${budget.currency}).`;
         }
     }
 
     /**
-     * Send email alert
+     * Send email alert (currently disabled)
      */
     async sendEmailAlert(budget, alert) {
+        // Email functionality temporarily disabled
+        console.log('📧 Email alert skipped (email service disabled):', {
+            budgetName: budget.budget_name,
+            alertType: alert.alert_type,
+            userEmail: budget.email
+        });
+        return { success: true, messageId: 'disabled' };
+        
+        /* Original email code (commented out):
         try {
             const transporter = emailConfig.getTransporter();
             const fromAddress = emailConfig.getDefaultFromAddress();
@@ -204,6 +283,7 @@ class AlertService {
             console.error('❌ Failed to send alert email:', error.message);
             throw error;
         }
+        */
     }
 
     /**
@@ -278,6 +358,10 @@ class AlertService {
                         <tr>
                             <td style="padding: 8px 0; font-weight: bold;">Percentage Used:</td>
                             <td style="padding: 8px 0; color: ${alertColor}; font-weight: bold;">${percentage}%</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px 0; font-weight: bold;">Budget Currency:</td>
+                            <td style="padding: 8px 0;">${budget.currency}</td>
                         </tr>
                         <tr>
                             <td style="padding: 8px 0; font-weight: bold;">Period:</td>

@@ -36,6 +36,55 @@ class BudgetController {
 
         } catch (error) {
             console.error('Error creating budget:', error);
+            
+            // Handle specific conflict errors
+            if (error.message.includes('Budget conflict detected')) {
+                return res.status(409).json({
+                    success: false,
+                    message: error.message,
+                    error_type: 'BUDGET_CONFLICT',
+                    statusCode: 409
+                });
+            }
+            
+            res.status(500).json(
+                errorResponse(error.message)
+            );
+        }
+    }
+
+    /**
+     * Check for potential budget conflicts before creation
+     * POST /budgets/check-conflicts
+     */
+    async checkBudgetConflicts(req, res) {
+        try {
+            const { user_id, category_id, start_date, end_date, budget_id } = req.body;
+
+            if (!user_id || !category_id || !start_date || !end_date) {
+                return res.status(400).json(
+                    validationErrorResponse(['Missing required fields: user_id, category_id, start_date, end_date'])
+                );
+            }
+
+            const conflicts = await BudgetService.checkBudgetConflicts(
+                user_id, 
+                category_id, 
+                start_date, 
+                end_date, 
+                budget_id
+            );
+
+            res.json(
+                successResponse({
+                    has_conflicts: conflicts.length > 0,
+                    conflicts: conflicts,
+                    conflict_count: conflicts.length
+                }, 'Conflict check completed')
+            );
+
+        } catch (error) {
+            console.error('Error checking budget conflicts:', error);
             res.status(500).json(
                 errorResponse(error.message)
             );

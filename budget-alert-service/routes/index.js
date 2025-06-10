@@ -2,6 +2,7 @@ import express from 'express';
 import budgetRoutes from './budgetRoutes.js';
 import transactionRoutes from './transactionRoutes.js';
 import alertRoutes from './alertRoutes.js';
+import categoryRoutes from './categoryRoutes.js';
 
 const router = express.Router();
 
@@ -9,6 +10,7 @@ const router = express.Router();
 router.use('/budgets', budgetRoutes);
 router.use('/transactions', transactionRoutes);
 router.use('/alerts', alertRoutes);
+router.use('/categories', categoryRoutes);
 
 // Root health check
 router.get('/health', (req, res) => {
@@ -21,7 +23,8 @@ router.get('/health', (req, res) => {
         endpoints: {
             budgets: '/api/budgets',
             transactions: '/api/transactions',
-            alerts: '/api/alerts'
+            alerts: '/api/alerts',
+            categories: '/api/categories'
         }
     });
 });
@@ -59,6 +62,13 @@ router.get('/info', (req, res) => {
                     'GET /alerts/:userId': 'Get user alerts',
                     'POST /alerts/:userId/:budgetId/check': 'Trigger budget check',
                     'PUT /alerts/:userId/:alertId/read': 'Mark alert as read'
+                },
+                categories: {
+                    'POST /categories': 'Create a new category',
+                    'GET /categories/:userId': 'Get user categories',
+                    'GET /categories/:userId/:categoryId': 'Get specific category',
+                    'PUT /categories/:userId/:categoryId': 'Update category',
+                    'DELETE /categories/:userId/:categoryId': 'Delete category'
                 }
             }
         }

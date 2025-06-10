@@ -91,32 +91,39 @@ export function validateTransactionData(data) {
 
     if (data.amount === undefined || data.amount === null) {
         errors.push('amount is required');
-    } else if (isNaN(data.amount)) {
-        errors.push('amount must be a valid number');
+    } else if (isNaN(data.amount) || parseFloat(data.amount) <= 0) {
+        errors.push('amount must be a positive number');
     }
 
-    // Optional fields validation
-    if (data.category_id && !isValidUUID(data.category_id)) {
-        errors.push('category_id must be a valid UUID if provided');
+    // Optional fields validation - category_id can be a name or UUID
+    if (data.category_id && typeof data.category_id !== 'string') {
+        errors.push('category_id must be a string (UUID or category name) if provided');
     }
 
     if (data.transaction_date && isNaN(Date.parse(data.transaction_date))) {
         errors.push('transaction_date must be a valid date if provided');
     }
 
-    if (data.transaction_type && !['income', 'expense'].includes(data.transaction_type)) {
-        errors.push('transaction_type must be either "income" or "expense"');
+    if (data.transaction_type && !['income', 'expense', 'transfer'].includes(data.transaction_type)) {
+        errors.push('transaction_type must be one of: income, expense, transfer');
     }
 
     if (data.currency && (typeof data.currency !== 'string' || data.currency.length !== 3)) {
         errors.push('currency must be a 3-character ISO currency code');
     }
 
+    console.log('🔍 Transaction validation:', {
+        data,
+        errors,
+        hasErrors: errors.length > 0
+    });
+
     return {
         isValid: errors.length === 0,
         errors,
         sanitizedData: errors.length === 0 ? sanitizeTransactionData(data) : null
     };
+
 }
 
 /**
@@ -143,8 +150,11 @@ export function validateAlertData(data) {
         errors.push('alert_type must be one of: warning, exceeded, critical');
     }
 
-    if (data.current_spent !== undefined && isNaN(data.current_spent)) {
-        errors.push('current_spent must be a valid number');
+    // current_spent is required for proper alert tracking
+    if (data.current_spent === undefined || data.current_spent === null) {
+        errors.push('current_spent is required for alert tracking');
+    } else if (isNaN(data.current_spent) || parseFloat(data.current_spent) < 0) {
+        errors.push('current_spent must be a valid non-negative number');
     }
 
     if (data.budget_amount !== undefined && isNaN(data.budget_amount)) {

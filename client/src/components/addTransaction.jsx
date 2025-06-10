@@ -28,6 +28,8 @@ const AddTransaction = ({ isOpen, setIsOpen, refetch }) => {
   const [accountData, setAccountData] = useState([]);
   const [accountInfo, setAccountInfo] = useState({});
   const [selectedAccount, setSelectedAccount] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
 
   // Add amount validation check
   const watchAmount = watch("amount");
@@ -36,7 +38,16 @@ const AddTransaction = ({ isOpen, setIsOpen, refetch }) => {
   const submitHandler = async (data) => {
     try {
       setLoading(true);
-      const newData = { ...data, source: accountInfo.account_name };
+      
+      // Find the selected category to get both name and ID
+      const selectedCategory = categories.find(cat => cat.id === data.category);
+      
+      const newData = { 
+        ...data, 
+        source: accountInfo.type_name || accountInfo.account_name || 'Unknown Account',
+        category: selectedCategory?.name || data.category, // Send name for transaction table
+        category_id: selectedCategory?.id || null // Send ID for budget service
+      };
 
       const { data: res } = await api.post(
         `/transactions/add-transaction/${accountInfo.id}`,
@@ -77,8 +88,23 @@ const AddTransaction = ({ isOpen, setIsOpen, refetch }) => {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      // Only fetch expense categories for expense transactions
+      const { data: res } = await api.get("/categories?type=expense");
+      setCategories(res?.data || []);
+    } catch (error) {
+      console.log(error);
+      toast.error("Failed to fetch categories");
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
   useEffect(() => {
     fetchAccounts();
+    fetchCategories();
   }, []);
 
   function closeModal() {
@@ -184,6 +210,33 @@ const AddTransaction = ({ isOpen, setIsOpen, refetch }) => {
 
               {accountBalance > 0 && (
                 <>
+                  {/* Category Selection */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Category *
+                    </label>
+                    <select
+                      {...register("category", {
+                        required: "Please select a category",
+                      })}
+                      className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-600 text-gray-900 dark:text-gray-100 rounded-xl py-3 px-4 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200"
+                      disabled={loadingCategories}
+                    >
+                      <option value="">
+                        {loadingCategories ? 'Loading categories...' : 'Select Category'}
+                      </option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                    {errors.category && (
+                      <p className="text-red-500 text-sm flex items-center gap-1">
+                        <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                        {errors.category.message}
+                      </p>
+                    )}
+                  </div>
+
                   {/* Description Input */}
                   <div className="space-y-2">
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">

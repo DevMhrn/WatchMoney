@@ -8,6 +8,12 @@ class EmailConfig {
     }
 
     async init() {
+        // Email service temporarily disabled
+        console.log('📧 Email service disabled - skipping email configuration');
+        this.transporter = null;
+        this.testAccount = null;
+        
+        /* Original email initialization (commented out):
         try {
             // For MVP/Testing: Use Ethereal Email (fake SMTP service for testing)
             console.log('🧪 Setting up Ethereal Email for testing...');
@@ -15,7 +21,7 @@ class EmailConfig {
             // Create test account
             this.testAccount = await nodemailer.createTestAccount();
             
-            this.transporter = nodemailer.createTransport({
+            this.transporter = nodemailer.createTransporter({
                 host: 'smtp.ethereal.email',
                 port: 587,
                 secure: false, // true for 465, false for other ports
@@ -35,15 +41,21 @@ class EmailConfig {
             console.error('❌ Failed to setup email transporter:', error.message);
             
             // Fallback: create a simple transporter that won't fail
-            this.transporter = nodemailer.createTransport({
+            this.transporter = nodemailer.createTransporter({
                 streamTransport: true,
                 newline: 'unix',
                 buffer: true
             });
         }
+        */
     }
 
     async verifyConnection() {
+        // Email service disabled
+        console.log('📧 Email verification skipped - email service is disabled');
+        return false;
+        
+        /* Original verification code (commented out):
         try {
             if (!this.transporter) {
                 console.log('⚠️  Email transporter not initialized - skipping verification');
@@ -57,29 +69,30 @@ class EmailConfig {
             console.error('❌ Email verification failed:', error.message);
             return false;
         }
+        */
     }
 
     getTransporter() {
-        return this.transporter;
+        return null; // Email service disabled
     }
 
     getDefaultFromAddress() {
         return {
             name: 'DdevFinance Budget Alerts',
-            address: this.testAccount ? this.testAccount.user : 'noreply@ddevfinance.local'
+            address: 'noreply@ddevfinance.local'
         };
     }
 
-    // Method to get the preview URL for testing
-    getPreviewUrl(messageInfo) {
-        if (messageInfo && messageInfo.messageId) {
-            return nodemailer.getTestMessageUrl(messageInfo);
-        }
-        return null;
-    }
-
-    // Test email sending
+    // Test email sending (disabled)
     async sendTestEmail(to = 'devlearncoding37@gmail.com') {
+        console.log('📧 Test email skipped - email service is disabled');
+        return {
+            success: true,
+            messageId: 'disabled',
+            message: 'Email service is currently disabled'
+        };
+        
+        /* Original test email code (commented out):
         try {
             if (!this.transporter) {
                 throw new Error('Email transporter not initialized');
@@ -129,6 +142,7 @@ class EmailConfig {
             console.error('❌ Failed to send test email:', error.message);
             throw error;
         }
+        */
     }
 }
 

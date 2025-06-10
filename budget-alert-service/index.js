@@ -9,6 +9,7 @@ import { configDotenv } from 'dotenv';
 import { testConnection, initializeDatabase } from './config/database.js';
 import emailConfig from './config/email.js';
 import routes from './routes/index.js';
+import { authMiddleware } from './middleware/authMiddleware.js';
 
 // Load environment variables
 configDotenv();
@@ -61,6 +62,11 @@ app.use((req, res, next) => {
     console.log(`[${timestamp}] ${req.method} ${req.path} - ${req.ip}`);
     next();
 });
+
+// Apply authentication middleware to specific routes only, not categories
+app.use('/api/budgets', authMiddleware);
+app.use('/api/alerts', authMiddleware);
+app.use('/api/transactions', authMiddleware);
 
 // API routes
 app.use('/api', routes);
@@ -137,11 +143,17 @@ const server = app.listen(PORT, async () => {
         console.warn('⚠️  Database initialization had issues, but service will continue...');
     }
     
+    // Email service temporarily disabled
+    console.log('📧 Email service disabled - alerts will be stored in database only');
+    const emailVerified = false;
+    
+    /* Original email verification (commented out):
     // Test email configuration
     const emailVerified = await emailConfig.verifyConnection();
     if (!emailVerified) {
         console.warn('⚠️  Email configuration not verified. Email alerts may not work.');
     }
+    */
     
     console.log(`\n✅ Budget Alert Service running on port ${PORT}`);
     console.log(`🌐 API Base URL: http://localhost:${PORT}`);
@@ -154,7 +166,7 @@ const server = app.listen(PORT, async () => {
     console.log(`   GET  /api/budgets/:userId - Get user budgets`);
     console.log(`   GET  /api/alerts/:userId - Get user alerts`);
     console.log(`\n🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`📧 Email Alerts: ${emailVerified ? 'Enabled' : 'Disabled'}`);
+    console.log(`📧 Email Alerts: Disabled (database alerts only)`);
     console.log('\n' + '='.repeat(60) + '\n');
 });
 

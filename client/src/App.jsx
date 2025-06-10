@@ -7,6 +7,8 @@ import Dashboard from './pages/dashboard'
 import Transactions from './pages/transactions'
 import SettingsPage from './pages/settingsPage'
 import AccountPage from './pages/accountPage'
+import BudgetPage from './pages/budgetPage'
+import AlertsPage from './pages/alertsPage'
 import { useStore } from './store'
 import { setAuthToken } from './libs/apiCalls'
 import { Toaster } from 'sonner';
@@ -55,6 +57,8 @@ function App() {
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/accounts" element={<AccountPage />} />
+              <Route path="/budgets" element={<BudgetPage />} />
+              <Route path="/alerts" element={<AlertsPage />} />
 
 
             </Route>

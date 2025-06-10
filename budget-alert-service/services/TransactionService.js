@@ -12,91 +12,115 @@ class TransactionService {
         try {
             const {
                 user_id,
-                category_id,
+                category_id, // This could be category name or ID
                 amount,
                 transaction_date = new Date(),
                 transaction_type = 'expense',
                 description = ''
             } = transactionData;
+            console.log('🔍 Processing transaction:')
+            console.log('Transaction Data:', {
+                user_id,
+                category_id,
+                amount,
+                transaction_type,
+                description
+            });
+
 
             // Validate required fields
             if (!user_id || !amount) {
-                throw new Error('Missing required fields: user_id and amount are required');
-            }
-
-            // Only process expense transactions for budget checking
-            if (transaction_type !== 'expense' || amount <= 0) {
                 return {
-                    success: true,
-                    message: 'Transaction processed - no budget check needed',
+                    success: false,
+                    message: 'Missing required fields: user_id and amount are required',
                     budgetChecks: []
                 };
             }
 
-            console.log(`🔍 Processing expense transaction: ${amount} for user ${user_id}, category ${category_id}`);
+            // IMPORTANT: Only process expense transactions for budget checking
+            // Income and transfer transactions don't affect budget spending
+            if (transaction_type !== 'expense' || amount <= 0) {
+                return {
+                    success: true,
+                    message: `Transaction type '${transaction_type}' does not affect budgets. Budget check skipped.`,
+                    budgetChecks: [],
+                    skipped: true,
+                    reason: `Only expense transactions affect budget spending. Type received: ${transaction_type}`
+                };
+            }
 
-            // Get all budgets that might be affected by this transaction
+            console.log(`🔍 Processing EXPENSE transaction: ${amount} for user ${user_id}, category ${category_id}`);
+
+            // Get all budgets that might be affected by this expense transaction
             const affectedBudgets = await BudgetService.getAffectedBudgets(
                 user_id, 
-                category_id, 
+                category_id, // Pass category name or ID
                 transaction_date
             );
 
             if (affectedBudgets.length === 0) {
+                console.log('ℹ️  No budgets affected by this expense transaction');
                 return {
                     success: true,
-                    message: 'No active budgets found for this transaction',
+                    message: 'Expense transaction processed (no matching budgets found)',
                     budgetChecks: []
                 };
             }
 
             const budgetChecks = [];
 
-            // Process each affected budget
+            // Process EACH affected budget - handles multiple budgets per category
             for (const budget of affectedBudgets) {
                 try {
-                    // Update budget spending cache
-                    await BudgetService.updateBudgetSpending(budget.id, user_id);
-
-                    // Check if alerts need to be sent
+                    console.log(`📊 Checking budget: ${budget.budget_name} (${budget.id})`);
+                    
+                    // Update budget spending with the converted transaction amount
+                    await BudgetService.updateBudgetSpending(budget.id, user_id, amount);
+                    
+                    // Check for alerts
                     const alertResult = await AlertService.checkAndSendAlerts(user_id, budget.id);
-
+                    
                     budgetChecks.push({
                         budgetId: budget.id,
                         budgetName: budget.budget_name,
                         alertSent: alertResult.success && alertResult.alert,
                         alertType: alertResult.alert?.alert_type || null,
-                        message: alertResult.message
+                        alertMessage: alertResult.message
                     });
-
-                    console.log(`✅ Budget check completed for ${budget.budget_name}: ${alertResult.message}`);
-
+                    
                 } catch (budgetError) {
                     console.error(`❌ Error processing budget ${budget.id}:`, budgetError.message);
                     budgetChecks.push({
                         budgetId: budget.id,
                         budgetName: budget.budget_name,
+                        alertSent: false,
                         error: budgetError.message
                     });
                 }
             }
 
+            const successfulChecks = budgetChecks.filter(bc => !bc.error).length;
+            const alertsSent = budgetChecks.filter(bc => bc.alertSent).length;
+
             return {
                 success: true,
-                message: `Transaction processed successfully. Checked ${affectedBudgets.length} budget(s).`,
+                message: `Expense transaction processed successfully. ${successfulChecks} budget(s) checked, ${alertsSent} alert(s) sent.`,
                 budgetChecks,
-                transactionData: {
-                    user_id,
-                    category_id,
-                    amount,
-                    transaction_date,
-                    transaction_type
+                summary: {
+                    budgetsChecked: successfulChecks,
+                    alertsSent,
+                    totalBudgets: affectedBudgets.length,
+                    transactionType: transaction_type
                 }
             };
 
         } catch (error) {
             console.error('❌ Error processing transaction:', error.message);
-            throw error;
+            return {
+                success: false,
+                message: `Transaction processing failed: ${error.message}`,
+                budgetChecks: []
+            };
         }
     }
 
