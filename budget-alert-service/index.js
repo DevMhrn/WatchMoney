@@ -83,6 +83,20 @@ app.get('/', (req, res) => {
     });
 });
 
+// Direct health check endpoint
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        success: true,
+        status: 'healthy',
+        service: 'Budget Alert Service',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        version: '1.0.0',
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
+
 // 404 handler
 app.use('*', (req, res) => {
     res.status(404).json({
