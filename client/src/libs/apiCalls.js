@@ -15,7 +15,7 @@ export function setAuthToken(token) {
 }
 
 // Budget Service API calls
-const BUDGET_SERVICE_URL = import.meta.env.VITE_BUDGET_SERVICE_URL || 'http://localhost:3002/api';
+const BUDGET_SERVICE_URL = `${import.meta.env.VITE_BUDGET_SERVICE_URL}/api` || 'http://localhost:3002/api';
 
 export const budgetAPI = {
   // Budget operations
