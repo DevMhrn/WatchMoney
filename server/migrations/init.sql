@@ -140,7 +140,20 @@ INSERT INTO tblcategory (name, description, color_code, icon_name, type, is_syst
 ('Education', 'Education and learning costs', '#4CAF50', 'education', 'expense', true),
 ('Travel', 'Travel and vacation expenses', '#009688', 'travel', 'expense', true),
 ('Insurance', 'Insurance premiums', '#00BCD4', 'insurance', 'expense', true),
-('Other Expense', 'Other miscellaneous expenses', '#607D8B', 'other', 'expense', true);
+('Other Expense', 'Other miscellaneous expenses', '#607D8B', 'other', 'expense', true),
+
+-- Budget categories
+('General Budget', 'General purpose budget category', '#9C27B0', 'budget', 'budget', true),
+('Emergency Fund', 'Emergency fund budget', '#F44336', 'emergency', 'budget', true),
+('Vacation Fund', 'Vacation savings budget', '#FF9800', 'vacation', 'budget', true),
+('Home Improvement', 'Home improvement projects', '#795548', 'home', 'budget', true),
+('Car Fund', 'Car purchase or maintenance fund', '#607D8B', 'car', 'budget', true)
+ON CONFLICT (user_id, name, type) DO NOTHING;
+
+-- Update the constraint to include budget type
+ALTER TABLE tblcategory DROP CONSTRAINT IF EXISTS tblcategory_type_check;
+ALTER TABLE tblcategory ADD CONSTRAINT tblcategory_type_check 
+    CHECK (type IN ('income', 'expense', 'transfer', 'budget'));
 
 -- Views for common queries
 -- CREATE VIEW v_account_summary AS

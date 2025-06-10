@@ -23,6 +23,8 @@ import {
     { label: "Dashboard", link: "/dashboard" },
     { label: "Transactions", link: "/transactions" },
     { label: "Accounts", link: "/accounts" },
+    { label: "Budgets", link: "/budgets" },
+    { label: "Alerts", link: "/alerts" },
     { label: "Settings", link: "/settings" },
   ];
   
